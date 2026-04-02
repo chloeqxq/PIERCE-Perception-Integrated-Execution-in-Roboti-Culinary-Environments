@@ -350,10 +350,12 @@ def record_loop(
         # Applies a pipeline to the raw robot observation, default is IdentityProcessor
         obs_processed = robot_observation_processor(obs)
 
+        # Format the observation for the dataset
         if policy is not None or dataset is not None:
             observation_frame = build_dataset_frame(dataset.features, obs_processed, prefix=OBS_STR)
 
         # Get action from either policy or teleop
+        # If policy is provided, use it to predict the action
         if policy is not None and preprocessor is not None and postprocessor is not None:
             action_values = predict_action(
                 observation=observation_frame,
@@ -367,7 +369,8 @@ def record_loop(
             )
 
             act_processed_policy: RobotAction = make_robot_action(action_values, dataset.features)
-
+        
+        # If policy is not provided, use teleop to get the action
         elif policy is None and isinstance(teleop, Teleoperator):
             if robot.name == "unitree_g1":
                 teleop.send_feedback(obs)
@@ -447,6 +450,16 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     teleop = make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
 
     teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
+
+    # Inject skewer processor.
+    if cfg.teleop is not None and cfg.teleop.type == "bi_so_leader" and cfg.robot.type == "bi_so_follower":
+        try:
+            from lerobot.data_collection.skewer_processor import SkewerActionProcessor
+
+            teleop_action_processor.steps = [SkewerActionProcessor()]
+            logging.info("SkewerActionProcessor enabled for bi_so data collection.")
+        except ImportError as e:
+            logging.warning(f"Could not load SkewerActionProcessor: {e}. Running with default processor.")
 
     dataset_features = combine_feature_dicts(
         aggregate_pipeline_dataset_features(
