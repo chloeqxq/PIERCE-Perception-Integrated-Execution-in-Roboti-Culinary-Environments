@@ -106,10 +106,15 @@ class BiSOLeader(Teleoperator):
         action_dict.update({f"right_{key}": value for key, value in right_action.items()})
 
         return action_dict
-
+    def disable_torque(self):
+        self.left_arm.bus.disable_torque()
+        self.right_arm.bus.disable_torque()
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # TODO: Implement force feedback
-        raise NotImplementedError
+        self.left_arm.bus.enable_torque()
+        self.right_arm.bus.enable_torque()
+        self.left_arm.send_feedback({f"{key[5:]}": value for key, value in feedback.items() if key[:4]=="left"})
+        self.right_arm.send_feedback({f"{key[6:]}": value for key, value in feedback.items() if key[:5]=="right"})
 
     @check_if_not_connected
     def disconnect(self) -> None:

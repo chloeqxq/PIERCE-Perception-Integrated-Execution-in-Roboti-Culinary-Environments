@@ -132,13 +132,13 @@ class SOLeader(Teleoperator):
             self.bus.write("Operating_Mode", motor, OperatingMode.POSITION.value)
            
             # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
-            self.bus.write("P_Coefficient", motor, 0)
+            self.bus.write("P_Coefficient", motor, 20)
             # Set I_Coefficient and D_Coefficient to default value 0 and 32
             self.bus.write("I_Coefficient", motor, 0)
             self.bus.write("D_Coefficient", motor, 0)
-            self.bus.write("Max_Torque_Limit", motor, 100)  # 1% of max torque to avoid burnout
-            self.bus.write("Torque_Limit", motor, 100)  # 1% of max torque to avoid burnout
-            self.bus.write("Protection_Current", motor, 50)  # 2% of max current to avoid burnout
+            self.bus.write("Max_Torque_Limit", motor, 500)  
+            self.bus.write("Torque_Limit", motor, 500)  
+            self.bus.write("Protection_Current", motor, 250)  # 2% of max current to avoid burnout
 
         # self.bus.enable_torque()
     def setup_motors(self) -> None:
@@ -159,6 +159,8 @@ class SOLeader(Teleoperator):
 
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # TODO: Implement force feedback
+        # print(feedback)
+        feedback['shoulder_pan.pos']=-feedback['shoulder_pan.pos']
         self.send_action(feedback)
         # raise NotImplementedError
     @check_if_not_connected

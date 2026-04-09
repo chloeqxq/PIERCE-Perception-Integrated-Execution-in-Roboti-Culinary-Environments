@@ -58,9 +58,9 @@ from pprint import pformat
 
 import rerun as rr
 
+from lerobot.cameras.configs import Cv2Backends, Cv2Rotation
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig  # noqa: F401
 from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraConfig  # noqa: F401
-from lerobot.configs import parser
 from lerobot.processor import (
     RobotAction,
     RobotObservation,
@@ -103,7 +103,8 @@ from lerobot.utils.import_utils import register_third_party_plugins
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import init_logging, move_cursor_up
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
-
+import numpy as np
+print("done importing")
 
 @dataclass
 class TeleoperateConfig:
@@ -153,6 +154,11 @@ def teleop_loop(
 
     display_len = max(len(key) for key in robot.action_features)
     start = time.perf_counter()
+    print("zeroing leaders")
+    obs = robot.get_observation()
+    _ = teleop.send_feedback(obs)
+    _ = input("zeroing leaders, type anything to continue")
+    teleop.disable_torque()
 
     while True:
         loop_start = time.perf_counter()
@@ -168,10 +174,36 @@ def teleop_loop(
 
         # Process teleop action through pipeline
         teleop_action = teleop_action_processor((raw_action, obs))
-        print(teleop_action)
+        # print(teleop_action)
         # Process action for robot through pipeline
         robot_action_to_send = robot_action_processor((teleop_action, obs))
+        error_dict = {}
+        for key in robot_action_to_send.keys():
+            if key in obs.keys():
+                error_dict[key] = robot_action_to_send[key]-obs[key]
+        joint_errors = np.array(list(error_dict.values()))
+        # import ipdb
+        # ipdb.set_trace()
+        left_loads = np.array(list(robot.left_arm.bus.sync_read("Present_Current").values()))
+        right_loads = np.array(list(robot.right_arm.bus.sync_read("Present_Current").values()))
 
+        max_left = np.max(np.abs(left_loads))
+        max_right = np.max(np.abs(right_loads))
+        print(f"max left load: {max_left} max right load: {max_right}")
+        if(max_left>35 or max_right>35):
+            try:
+                _ = teleop.send_feedback(obs)
+            except:
+                print("warning, cannot feedback")
+            # pass
+        else:
+            try:
+                teleop.disable_torque()
+            except:
+                pass
+        # import ipdb
+
+        # ipdb.set_trace()
         # Send processed action to robot (robot_action_processor.to_output should return RobotAction)
         _ = robot.send_action(robot_action_to_send)
 
@@ -197,7 +229,6 @@ def teleop_loop(
                 except:
                     pass
             move_cursor_up(len(robot_action_to_send) + 3)
-        # _ = teleop.send_feedback(obs)
         dt_s = time.perf_counter() - loop_start
         precise_sleep(max(1 / fps - dt_s, 0.0))
         loop_s = time.perf_counter() - loop_start
@@ -208,7 +239,6 @@ def teleop_loop(
             return
 
 
-@parser.wrap()
 def teleoperate(cfg: TeleoperateConfig):
     print("done parsing")
     init_logging()
@@ -248,12 +278,54 @@ def teleoperate(cfg: TeleoperateConfig):
         teleop.disconnect()
         robot.disconnect()
 
-
 def main():
     print("registering plugins...")
     register_third_party_plugins()
     print("parsing...")
-    teleoperate()
+
+    host_port = 4
+    left_camera = OpenCVCameraConfig(
+        index_or_path=f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.1:1.0-video-index0",
+        width=640, height=480, fps=30, rotation=Cv2Rotation.ROTATE_180,backend=Cv2Backends.V4L2,fourcc="MJPG"
+    )
+
+    right_camera = OpenCVCameraConfig(
+        index_or_path=f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.3:1.0-video-index0",
+        width=640, height=480, fps=30, backend=Cv2Backends.V4L2,fourcc="MJPG"
+    )
+
+    top_camera = OpenCVCameraConfig(
+        index_or_path=f"/dev/v4l/by-id/usb-Innomaker_Innomaker-U20CAM-1080p-S1_SN0001-video-index0",
+        width=640, height=480, fps=30, backend=Cv2Backends.V4L2,fourcc="MJPG"
+    )
+
+    robot = bi_so_follower.BiSOFollowerConfig(
+            left_arm_config= so_follower.SO101FollowerConfig(
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7A056971-if00",
+                # cameras= {"wrist":left_camera}
+
+            ),
+            right_arm_config= so_follower.SO101FollowerConfig(
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7A058163-if00",
+                # cameras= {"wrist":right_camera,"top":top_camera}
+            ),
+            id = "bot",
+        )
+
+    cfg= TeleoperateConfig(
+        robot = robot,
+        teleop = bi_so_leader.BiSOLeaderConfig(
+            left_arm_config=so_leader.SO101LeaderConfig(
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6080418-if00"
+            ),
+            right_arm_config=so_leader.SO101LeaderConfig(
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6084492-if00"
+            ),
+            id = "leader"
+        ),
+        # display_data=True
+    )
+    teleoperate(cfg)
 
 
 if __name__ == "__main__":
