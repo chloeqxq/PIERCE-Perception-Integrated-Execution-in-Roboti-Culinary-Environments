@@ -82,6 +82,18 @@ from lerobot.robots import (  # noqa: F401
     so_follower,
     unitree_g1 as unitree_g1_robot,
 )
+from lerobot.robots.so_follower.robot_kinematic_processor import (
+    EEBoundsAndSafety,
+    InverseKinematicsEEToJoints,
+    EEReferenceAndDelta
+)
+from lerobot.model.kinematics import RobotKinematics
+# from lerobot.processor import RobotAction, RobotObservation, RobotProcessorPipeline
+from lerobot.processor.converters import (
+    robot_action_observation_to_transition,
+    robot_action_to_transition,
+    transition_to_robot_action,
+)
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
@@ -94,7 +106,6 @@ from lerobot.teleoperators import (  # noqa: F401
     make_teleoperator_from_config,
     omx_leader,
     openarm_leader,
-    # openarm_mini,
     reachy2_teleoperator,
     so_leader,
     unitree_g1,
@@ -162,23 +173,23 @@ def teleop_loop(
         # teleop_action_processor can take None as an observation
         # given that it is the identity processor as default
         obs = robot.get_observation()
-
+        print(f"obs: {obs}")
         # Get teleop action
         raw_action = teleop.get_action()
-
+        print(f"raw action: {raw_action}")
         # Process teleop action through pipeline
         teleop_action = teleop_action_processor((raw_action, obs))
-        print(teleop_action)
+        print(f"teleop_action: {teleop_action}")
         # Process action for robot through pipeline
         robot_action_to_send = robot_action_processor((teleop_action, obs))
 
+        print(f"action to send: {robot_action_to_send}")
         # Send processed action to robot (robot_action_processor.to_output should return RobotAction)
         _ = robot.send_action(robot_action_to_send)
 
         if display_data:
             # Process robot observation through pipeline
             obs_transition = robot_observation_processor(obs)
-
             log_rerun_data(
                 observation=obs_transition,
                 action=teleop_action,
@@ -190,11 +201,8 @@ def teleop_loop(
             # Display the final robot action that was sent
             for motor, value in robot_action_to_send.items():
                 print(f"{motor:<{display_len}} | {value:>7.2f}")
-            print("OBS:")
-            for motor, value in obs.items():
-                print(f"{motor:<{display_len}} | {value:>7.2f}")
             move_cursor_up(len(robot_action_to_send) + 3)
-        # _ = teleop.send_feedback(obs)
+
         dt_s = time.perf_counter() - loop_start
         precise_sleep(max(1 / fps - dt_s, 0.0))
         loop_s = time.perf_counter() - loop_start
@@ -220,9 +228,53 @@ def teleoperate(cfg: TeleoperateConfig):
     teleop = make_teleoperator_from_config(cfg.teleop)
     robot = make_robot_from_config(cfg.robot)
     teleop_action_processor, robot_action_processor, robot_observation_processor = make_default_processors()
+    # build pipeline to convert EE action to robot joints
+    follower_kinematics_solver = RobotKinematics(
+        urdf_path="/home/avery/codes/lerobot/SO-ARM100/Simulation/SO101/so101_new_calib.urdf",
+        target_frame_name="gripper_frame_link",
+        joint_names=list(robot.bus.motors.keys()),
+    )
+    ee_to_robot_joints = RobotProcessorPipeline[tuple[RobotAction, RobotObservation], RobotAction](
+        [
+            EEBoundsAndSafety(
+                end_effector_bounds={"min": [-1.0, -1.0, -1.0], "max": [1.0, 1.0, 1.0]},
+                max_ee_step_m=0.20,
+            ),
+            InverseKinematicsEEToJoints(
+                kinematics=follower_kinematics_solver,
+                motor_names=list(robot.bus.motors.keys()),
+                initial_guess_current_joints=True,
+            ),
+        ],
+        to_transition=robot_action_observation_to_transition,
+        to_output=transition_to_robot_action,
+    )
 
+    teleop_action_processor = RobotProcessorPipeline[tuple[RobotAction, RobotObservation], RobotAction](
+        [
+            EEReferenceAndDelta(
+                kinematics=follower_kinematics_solver,
+                motor_names=list(robot.bus.motors.keys()),
+                end_effector_step_sizes={'x':0.002,'y':0.001,'z':0.002},
+                use_latched_reference = False
+            )
+        ],
+        to_transition=robot_action_observation_to_transition,
+        to_output=transition_to_robot_action,
+    
+    )
+
+
+    robot_action_processor = ee_to_robot_joints
     teleop.connect()
     robot.connect()
+    input("robot ready, press any key to enable")
+    robot.bus.disable_torque()
+    neutral_action = {'shoulder_pan.pos': 0, 'shoulder_lift.pos': 0, 'elbow_flex.pos': 0, 'wrist_flex.pos': 0, 'wrist_roll.pos': 0, 'gripper.pos': 0}
+    ready_action = {'shoulder_pan.pos': 0.0, 'shoulder_lift.pos': -90.0, 'elbow_flex.pos': 90.0, 'wrist_flex.pos': 12.553011026293476, 'wrist_roll.pos': 0.0, 'gripper.pos': 0.0}
+    robot.send_action(ready_action)
+    time.sleep(3.0)
+    robot.bus.disable_torque()
 
     try:
         teleop_loop(
