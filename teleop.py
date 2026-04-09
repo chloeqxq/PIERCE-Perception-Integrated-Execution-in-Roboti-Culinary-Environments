@@ -177,33 +177,26 @@ def teleop_loop(
         # print(teleop_action)
         # Process action for robot through pipeline
         robot_action_to_send = robot_action_processor((teleop_action, obs))
-        error_dict = {}
-        for key in robot_action_to_send.keys():
-            if key in obs.keys():
-                error_dict[key] = robot_action_to_send[key]-obs[key]
-        joint_errors = np.array(list(error_dict.values()))
-        # import ipdb
-        # ipdb.set_trace()
+        # error_dict = {}
+        # for key in robot_action_to_send.keys():
+        #     if key in obs.keys():
+        #         error_dict[key] = robot_action_to_send[key]-obs[key]
         left_loads = np.array(list(robot.left_arm.bus.sync_read("Present_Current").values()))
         right_loads = np.array(list(robot.right_arm.bus.sync_read("Present_Current").values()))
 
         max_left = np.max(np.abs(left_loads))
         max_right = np.max(np.abs(right_loads))
-        print(f"max left load: {max_left} max right load: {max_right}")
+        # print(f"max left load: {max_left} max right load: {max_right}")
         if(max_left>35 or max_right>35):
             try:
                 _ = teleop.send_feedback(obs)
             except:
                 print("warning, cannot feedback")
-            # pass
         else:
             try:
                 teleop.disable_torque()
             except:
                 pass
-        # import ipdb
-
-        # ipdb.set_trace()
         # Send processed action to robot (robot_action_processor.to_output should return RobotAction)
         _ = robot.send_action(robot_action_to_send)
 

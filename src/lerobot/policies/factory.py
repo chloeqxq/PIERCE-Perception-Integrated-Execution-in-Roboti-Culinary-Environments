@@ -281,7 +281,7 @@ def make_pre_post_processors(
                 overrides=kwargs.get("postprocessor_overrides", {}),
                 to_transition=policy_action_to_transition,
                 to_output=transition_to_policy_action,
-            ),UMVPN - Only U-M Traffic
+            )
         )
 
     # Create a new processor based on policy type

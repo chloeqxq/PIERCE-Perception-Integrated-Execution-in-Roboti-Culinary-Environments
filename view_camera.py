@@ -14,7 +14,8 @@ left:
 python3 view_camera.py /dev/v4l/by-path/pci-0000:c3:00.3-usb-0:1.1:1.0-video-index0
 right:
 python3 view_camera.py /dev/v4l/by-path/pci-0000:c3:00.3-usb-0:1.3:1.0-video-index0
-
+top:
+python3 view_camera.py /dev/v4l/by-id/usb-Innomaker_Innomaker-U20CAM-1080p-S1_SN0001-video-index0
 hub: upper right port.
     camera left: usb-0000:c3:00.3-1.1   /dev/v4l/by-path/pci-0000:c3:00.3-usb-0:1.1:1.0-video-index0
     camera right: usb-0000:c3:00.3-1.3  /dev/v4l/by-path/pci-0000:c3:00.3-usb-0:1.3:1.0-video-index0
