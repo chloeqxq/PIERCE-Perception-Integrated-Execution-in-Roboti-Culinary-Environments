@@ -918,7 +918,7 @@ class PI05Policy(PreTrainedPolicy):
             config: Policy configuration class instance.
         """
         super().__init__(config)
-        config.validate_features()
+        # config.validate_features()
         self.config = config
 
         # Initialize the core PI05 model
@@ -971,11 +971,11 @@ class PI05Policy(PreTrainedPolicy):
                 revision=revision,
                 **kwargs,
             )
-
+        print("config loaded")
         # Initialize model without loading weights
         # Check if dataset_stats were provided in kwargs
         model = cls(config, **kwargs)
-
+        print("model loaded")
         # Load state dict (expects keys with "model." prefix)
         try:
             print(f"Loading model from: {pretrained_name_or_path}")

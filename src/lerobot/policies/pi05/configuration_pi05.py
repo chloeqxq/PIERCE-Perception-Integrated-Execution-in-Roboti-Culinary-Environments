@@ -92,7 +92,7 @@ class PI05Config(PreTrainedConfig):
     optimizer_lr: float = 2.5e-5  # see openpi `CosineDecaySchedule: peak_lr`
     optimizer_betas: tuple[float, float] = (0.9, 0.95)
     optimizer_eps: float = 1e-8
-    optimizer_weight_decay: float = 0.01
+    optimizer_weight_decay: float = 0.0000000001
     optimizer_grad_clip_norm: float = 1.0
 
     # Scheduler settings: see openpi `CosineDecaySchedule`

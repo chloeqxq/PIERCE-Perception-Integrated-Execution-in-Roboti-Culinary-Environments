@@ -1,0 +1,20 @@
+lerobot-train \
+--dataset.repo_id=Aasdfip/full_skewer \
+--dataset.video_backend=pyav \
+--policy.path=lerobot/pi05_base \
+--rename_map='{"observation.images.right_top":"observation.images.base_0_rgb","observation.images.left_wrist":"observation.images.left_wrist_0_rgb","observation.images.right_wrist":"observation.images.right_wrist_0_rgb"}' \
+--policy.device=cuda \
+--policy.dtype=bfloat16 \
+--policy.gradient_checkpointing=false \
+--policy.train_expert_only=false \
+--output_dir=outputs/train/pi05_full_skewer_weight_decay \
+--batch_size=8 \
+--steps=50000 \
+--policy.freeze_vision_encoder=true \
+--wandb.enable=true \
+--policy.repo_id="Aasdfip/goldeen_low_weight_decay" \
+--policy.optimizer_weight_decay=0.0000000001 \
+--policy.optimizer_lr=0.0000175 \
+--log_freq=30 \
+--eval_freq=10000000 \
+
