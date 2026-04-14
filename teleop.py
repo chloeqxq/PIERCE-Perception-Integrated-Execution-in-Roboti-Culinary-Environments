@@ -187,7 +187,7 @@ def teleop_loop(
         max_left = np.max(np.abs(left_loads))
         max_right = np.max(np.abs(right_loads))
         # print(f"max left load: {max_left} max right load: {max_right}")
-        if(max_left>35 or max_right>35):
+        if(max_left>39 or max_right>39):
             try:
                 _ = teleop.send_feedback(obs)
             except:
@@ -309,10 +309,12 @@ def main():
         robot = robot,
         teleop = bi_so_leader.BiSOLeaderConfig(
             left_arm_config=so_leader.SO101LeaderConfig(
-                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6080418-if00"
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6080418-if00",
+                invert_shoulder=True
             ),
             right_arm_config=so_leader.SO101LeaderConfig(
-                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6084492-if00"
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6084492-if00",
+                invert_shoulder=False
             ),
             id = "leader"
         ),

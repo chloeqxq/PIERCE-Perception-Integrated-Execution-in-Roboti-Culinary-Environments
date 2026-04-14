@@ -152,7 +152,8 @@ class SOLeader(Teleoperator):
         start = time.perf_counter()
         action = self.bus.sync_read("Present_Position")
         action = {f"{motor}.pos": val for motor, val in action.items()}
-        action['shoulder_pan.pos']=-action['shoulder_pan.pos']
+        if self.config.invert_shoulder:
+            action['shoulder_pan.pos']=-action['shoulder_pan.pos']
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f}ms")
         return action
@@ -160,7 +161,11 @@ class SOLeader(Teleoperator):
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # TODO: Implement force feedback
         # print(feedback)
-        feedback['shoulder_pan.pos']=-feedback['shoulder_pan.pos']
+        if self.config.invert_shoulder:
+            print("inverting")
+            feedback['shoulder_pan.pos']=-feedback['shoulder_pan.pos']
+        else:
+            print("not inverting")
         self.send_action(feedback)
         # raise NotImplementedError
     @check_if_not_connected

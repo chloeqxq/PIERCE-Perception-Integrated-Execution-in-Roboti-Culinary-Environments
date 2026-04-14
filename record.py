@@ -143,7 +143,7 @@ from lerobot.utils.utils import (
     log_say,
 )
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
-
+import numpy as np
 
 @dataclass
 class DatasetRecordConfig:
@@ -382,6 +382,22 @@ def record_loop(
             action_values = act_processed_teleop
             robot_action_to_send = robot_action_processor((act_processed_teleop, obs))
 
+        left_loads = np.array(list(robot.left_arm.bus.sync_read("Present_Current").values()))
+        right_loads = np.array(list(robot.right_arm.bus.sync_read("Present_Current").values()))
+
+        max_left = np.max(np.abs(left_loads))
+        max_right = np.max(np.abs(right_loads))
+        # print(f"max left load: {max_left} max right load: {max_right}")
+        if(max_left>39 or max_right>39):
+            try:
+                _ = teleop.send_feedback(obs)
+            except:
+                print("warning, cannot feedback")
+        else:
+            try:
+                teleop.disable_torque()
+            except:
+                pass
         # Send action to robot
         # Action can eventually be clipped using `max_relative_target`,
         # so action actually sent is saved in the dataset. action = postprocessor.process(action)
@@ -492,7 +508,10 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             teleop.connect()
 
         listener, events = init_keyboard_listener()
-
+        obs = robot.get_observation()
+        _ = teleop.send_feedback(obs)
+        _ = input("zeroing leaders, type anything to continue")
+        teleop.disable_torque()
         with VideoEncodingManager(dataset):
             recorded_episodes = 0
             while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
@@ -552,21 +571,21 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         log_say("Stop recording", cfg.play_sounds, blocking=True)
 
         if dataset:
-
             dataset.finalize()
         else:
             print("somehow no dataset")
-        if robot.is_connected:
-            try:
-                robot.disconnect()
-            except:
-                print("oops")
-        if teleop and teleop.is_connected:
-            teleop.disconnect()
+        try:
+            if robot.is_connected:
+                
+                    robot.disconnect()
+                
+            if teleop and teleop.is_connected:
+                teleop.disconnect()
 
-        if not is_headless() and listener:
-            listener.stop()
-
+            if not is_headless() and listener:
+                listener.stop()
+        except:
+            print("oops")
         if cfg.dataset.push_to_hub:
             dataset.push_to_hub(tags=cfg.dataset.tags, private=cfg.dataset.private)
 
@@ -576,7 +595,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
 
 def main():
     register_third_party_plugins()
-    host_port = 3
+    host_port = 4
     left_camera = OpenCVCameraConfig(
         index_or_path=f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.1:1.0-video-index0",
         width=640, height=480, fps=30, rotation=Cv2Rotation.ROTATE_180,backend=Cv2Backends.V4L2,fourcc="MJPG"
@@ -609,18 +628,22 @@ def main():
         robot = robot,
         teleop = bi_so_leader.BiSOLeaderConfig(
             left_arm_config=so_leader.SO101LeaderConfig(
-                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6080418-if00"
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6080418-if00", 
+                invert_shoulder = True
             ),
             right_arm_config=so_leader.SO101LeaderConfig(
-                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6084492-if00"
+                port = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6084492-if00",
+                invert_shoulder = False
             ),
             id = "leader"
         ),
         dataset = DatasetRecordConfig(
-            repo_id = "Aasdfip/test_skewer",
-            single_task = "skewer one grape",
+            repo_id = "Aasdfip/skewer_test_side",
+            single_task = "put wooden skewers in bowl with left arm",
+            #"pickup and drop boxes with right arm",
             private=True,
-            episode_time_s=3600
+            episode_time_s=3600,
+            reset_time_s=0
         )
         # display_data=True
     )

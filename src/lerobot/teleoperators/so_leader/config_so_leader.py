@@ -30,6 +30,8 @@ class SOLeaderConfig:
     # Whether to use degrees for angles
     use_degrees: bool = False
 
+    invert_shoulder: bool = True
+
 
 @TeleoperatorConfig.register_subclass("so101_leader")
 @TeleoperatorConfig.register_subclass("so100_leader")
