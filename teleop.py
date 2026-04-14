@@ -50,7 +50,7 @@ lerobot-teleoperate \
 ```
 
 """
-
+from pathlib import Path
 import logging
 import time
 from dataclasses import asdict, dataclass
@@ -352,6 +352,7 @@ def main():
                 # cameras= {"wrist":right_camera,"top":top_camera}
             ),
             id = "bot",
+            calibration_dir=Path('calibration/robots/so_follower')
         )
 
     cfg= TeleoperateConfig(
@@ -365,7 +366,9 @@ def main():
                 port = ports["leader_right"],
                 invert_shoulder=False
             ),
-            id = "leader"
+            id = "leader",
+            calibration_dir=Path('calibration/teleoperators/so_leader')
+
         ),
         # display_data=True
     )
