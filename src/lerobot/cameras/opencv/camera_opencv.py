@@ -525,7 +525,7 @@ class OpenCVCamera(Camera):
 
         if frame is None:
             raise RuntimeError(f"Internal error: Event set but no frame available for {self}.")
-        cv2.imshow(self.index_or_path,frame)
+        # cv2.imshow(str(self.index_or_path),frame)
         if cv2.waitKey(1) == ord('q'):
             return None
         return frame
