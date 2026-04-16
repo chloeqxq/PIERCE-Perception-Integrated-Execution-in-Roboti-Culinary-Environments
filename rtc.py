@@ -118,6 +118,8 @@ class RobotWrapper:
 
     def send_action(self, action: Tensor):
         with self.lock:
+            pass
+            logger.info(action)
             self.robot.send_action(action)
 
     def observation_features(self) -> list[str]:
@@ -188,17 +190,10 @@ class RTCDemoConfig(HubMixin):
 
     def __post_init__(self):
         # HACK: We parse again the cli args here to get the pretrained path if there was one.
-        policy_path = parser.get_path_arg("policy")
-        if policy_path:
-            cli_overrides = parser.get_cli_overrides("policy")
-            self.policy = PreTrainedConfig.from_pretrained(policy_path, cli_overrides=cli_overrides)
-            self.policy.pretrained_path = policy_path
-        else:
-            raise ValueError("Policy path is required")
-
         # # Validate that robot configuration is provided
         # if self.robot is None:
         #     raise ValueError("Robot configuration must be provided")
+        pass
 
     @classmethod
     def __get_path_fields__(cls) -> list[str]:
@@ -266,15 +261,18 @@ def get_actions(
 
                 inference_latency = latency_tracker.max()
                 inference_delay = math.ceil(inference_latency / time_per_chunk)
-
+                logger.info("[inference] getting observation")
                 obs = robot.get_observation()
-
+                logger.info("[inference] got observation")
+  
                 # Apply robot observation processor
                 obs_processed = robot_observation_processor(obs)
+                logger.info("[inference] processed observation")
 
                 obs_with_policy_features = build_dataset_frame(
                     dataset_features, obs_processed, prefix="observation"
                 )
+                logger.info("[inference] processed feat")
 
                 for name in obs_with_policy_features:
                     obs_with_policy_features[name] = torch.from_numpy(obs_with_policy_features[name])
@@ -294,7 +292,7 @@ def get_actions(
                 )
 
                 preproceseded_obs = preprocessor(obs_with_policy_features)
-
+                logger.info("generating actions")
                 # Generate actions WITH RTC
                 actions = policy.predict_action_chunk(
                     preproceseded_obs,
@@ -428,8 +426,7 @@ def _apply_torch_compile(policy, cfg: RTCDemoConfig):
 
     return policy
 
-
-@parser.wrap()
+from hardware import get_robot
 def demo_cli(cfg: RTCDemoConfig):
     """Main entry point for RTC demo with draccus configuration."""
 
@@ -485,8 +482,9 @@ def demo_cli(cfg: RTCDemoConfig):
         policy = _apply_torch_compile(policy, cfg)
 
     # Create robot
-    logger.info(f"Initializing robot: {cfg.robot.type}")
-    robot = make_robot_from_config(cfg.robot)
+    robot_cfg = get_robot()
+    logger.info(f"Initializing robot {robot_cfg.type}")
+    robot = make_robot_from_config(robot_cfg)
     robot.connect()
     robot_wrapper = RobotWrapper(robot)
 
@@ -554,7 +552,18 @@ def demo_cli(cfg: RTCDemoConfig):
 
     logger.info("Cleanup completed")
 
-
+from lerobot.policies import SmolVLAConfig
 if __name__ == "__main__":
-    demo_cli()
+    demo_cli(RTCDemoConfig(
+        policy = SmolVLAConfig(pretrained_path="Aasdfip/smol_pretrain_50k"),
+        # rtc = RTCConfig(
+        #     enabled=True,execution_horizon=30,
+        #     # prefix_attention_schedule=RTCAttentionSchedule.EXP
+
+        # ),
+        fps=20,
+        action_queue_size_to_get_new_actions=6,
+        duration=3600,
+        task="sort the pink foam balls"
+    ))
     logging.info("RTC demo finished")

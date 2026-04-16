@@ -105,7 +105,8 @@ class SmolVLAConfig(PreTrainedConfig):
 
     # Real-Time Chunking (RTC) configuration
     rtc_config: RTCConfig | None = None
-
+    compile_model: bool | None = None
+    compile_mode: str |None = None
     def __post_init__(self):
         super().__post_init__()
 

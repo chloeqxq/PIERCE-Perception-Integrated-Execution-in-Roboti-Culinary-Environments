@@ -689,9 +689,9 @@ def main():
 
         ),
         dataset = DatasetRecordConfig(
-            repo_id = "Aasdfip/debug",
-            single_task = "sort the foam balls by color",
-            #"pickup and drop boxes with right arm",
+            repo_id = "Aasdfip/gather_green",
+            single_task = "gather the green balls in the bowl",
+            #"sort the foam balls by color",
             private=True,
             episode_time_s=3600,
             reset_time_s=0
