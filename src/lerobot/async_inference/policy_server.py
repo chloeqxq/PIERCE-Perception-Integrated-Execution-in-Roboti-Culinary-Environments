@@ -261,6 +261,8 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
             return services_pb2.Empty()
 
         except Exception as e:
+            import ipdb
+            ipdb.set_trace()
             self.logger.error(f"Error in StreamActions: {e}")
 
             return services_pb2.Empty()
@@ -349,6 +351,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         """2. Apply preprocessor"""
         start_preprocess = time.perf_counter()
         observation = self.preprocessor(observation)
+
         self.last_processed_obs: TimedObservation = observation_t
         preprocessing_time = time.perf_counter() - start_preprocess
 
