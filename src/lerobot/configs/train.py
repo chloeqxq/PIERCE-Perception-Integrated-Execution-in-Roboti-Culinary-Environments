@@ -50,9 +50,6 @@ class TrainPipelineConfig(HubMixin):
     # `seed` is used for training (eg: model initialization, dataset shuffling)
     # AND for the evaluation environments.
     seed: int | None = 1000
-    # Set to True to use deterministic cuDNN algorithms for reproducibility.
-    # This disables cudnn.benchmark and may reduce training speed by ~10-20 percent.
-    cudnn_deterministic: bool = False
     # Number of workers for the dataloader.
     num_workers: int = 4
     batch_size: int = 8
@@ -90,7 +87,6 @@ class TrainPipelineConfig(HubMixin):
             self.policy = PreTrainedConfig.from_pretrained(policy_path, cli_overrides=cli_overrides)
             self.policy.pretrained_path = Path(policy_path)
         elif self.resume:
-            print("resuming")
             # The entire train config is already loaded, we just need to get the checkpoint dir
             config_path = parser.parse_arg("config_path")
             if not config_path:
@@ -135,7 +131,7 @@ class TrainPipelineConfig(HubMixin):
 
         if not self.use_policy_training_preset and (self.optimizer is None or self.scheduler is None):
             raise ValueError("Optimizer and Scheduler must be set when the policy presets are not used.")
-        elif self.use_policy_training_preset:
+        elif self.use_policy_training_preset and not self.resume:
             self.optimizer = self.policy.get_optimizer_preset()
             self.scheduler = self.policy.get_scheduler_preset()
 

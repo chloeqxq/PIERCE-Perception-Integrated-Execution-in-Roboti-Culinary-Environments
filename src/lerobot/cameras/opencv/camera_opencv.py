@@ -341,7 +341,6 @@ class OpenCVCamera(Camera):
             raise DeviceNotConnectedError(f"{self} videocapture is not initialized")
 
         ret, frame = self.videocapture.read()
-
         if not ret:
             raise RuntimeError(f"{self} read failed (status={ret}).")
 
@@ -526,11 +525,13 @@ class OpenCVCamera(Camera):
 
         if frame is None:
             raise RuntimeError(f"Internal error: Event set but no frame available for {self}.")
-
+        cv2.imshow(self.index_or_path,frame)
+        if cv2.waitKey(1) == ord('q'):
+            return None
         return frame
 
     @check_if_not_connected
-    def read_latest(self, max_age_ms: int = 500) -> NDArray[Any]:
+    def read_latest(self, max_age_ms: int = 1000) -> NDArray[Any]:
         """Return the most recent frame captured immediately (Peeking).
 
         This method is non-blocking and returns whatever is currently in the

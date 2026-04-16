@@ -23,8 +23,7 @@ import draccus
 import torch
 from safetensors.torch import load_file, save_file
 
-from lerobot.datasets.io_utils import write_json
-from lerobot.datasets.utils import flatten_dict, unflatten_dict
+from lerobot.datasets.utils import flatten_dict, unflatten_dict, write_json
 from lerobot.utils.constants import (
     OPTIMIZER_PARAM_GROUPS,
     OPTIMIZER_STATE,
@@ -103,8 +102,8 @@ class AdamWConfig(OptimizerConfig):
     lr: float = 1e-3
     betas: tuple[float, float] = (0.9, 0.999)
     eps: float = 1e-8
-    weight_decay: float = 0.0000000001
-    grad_clip_norm: float = 1.0
+    weight_decay: float = 1e-2
+    grad_clip_norm: float = 10.0
 
     def build(self, params: OptimizerParams) -> torch.optim.Optimizer:
         kwargs = asdict(self)

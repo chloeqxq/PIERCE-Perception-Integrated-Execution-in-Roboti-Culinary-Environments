@@ -16,6 +16,7 @@
 
 import logging
 import time
+from typing import TypeAlias
 
 from lerobot.motors import Motor, MotorCalibration, MotorNormMode
 from lerobot.motors.feetech import (
@@ -129,7 +130,17 @@ class SOLeader(Teleoperator):
         self.bus.configure_motors()
         for motor in self.bus.motors:
             self.bus.write("Operating_Mode", motor, OperatingMode.POSITION.value)
+           
+            # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
+            self.bus.write("P_Coefficient", motor, 20)
+            # Set I_Coefficient and D_Coefficient to default value 0 and 32
+            self.bus.write("I_Coefficient", motor, 0)
+            self.bus.write("D_Coefficient", motor, 0)
+            self.bus.write("Max_Torque_Limit", motor, 500)  
+            self.bus.write("Torque_Limit", motor, 500)  
+            self.bus.write("Protection_Current", motor, 250)  # 2% of max current to avoid burnout
 
+        # self.bus.enable_torque()
     def setup_motors(self) -> None:
         for motor in reversed(self.bus.motors):
             input(f"Connect the controller board to the '{motor}' motor only and press enter.")
@@ -141,19 +152,54 @@ class SOLeader(Teleoperator):
         start = time.perf_counter()
         action = self.bus.sync_read("Present_Position")
         action = {f"{motor}.pos": val for motor, val in action.items()}
+        if self.config.invert_shoulder:
+            action['shoulder_pan.pos']=-action['shoulder_pan.pos']
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f}ms")
         return action
 
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # TODO: Implement force feedback
-        raise NotImplementedError
+        # print(feedback)
+        if self.config.invert_shoulder:
+            print("inverting")
+            feedback['shoulder_pan.pos']=-feedback['shoulder_pan.pos']
+        else:
+            print("not inverting")
+        self.send_action(feedback)
+        # raise NotImplementedError
+    @check_if_not_connected
+    def send_action(self, action) :
+        """Command arm to move to a target joint configuration.
 
+        The relative action magnitude may be clipped depending on the configuration parameter
+        `max_relative_target`. In this case, the action sent differs from original action.
+        Thus, this function always returns the action actually sent.
+
+        Raises:
+            RobotDeviceNotConnectedError: if robot is not connected.
+
+        Returns:
+            RobotAction: the action sent to the motors, potentially clipped.
+        """
+
+        goal_pos = {key.removesuffix(".pos"): val for key, val in action.items() if key.endswith(".pos")}
+
+        # Cap goal position when too far away from present position.
+        # /!\ Slower fps expected due to reading from the follower.
+        # if self.config.max_relative_target is not None:
+        #     present_pos = self.bus.sync_read("Present_Position")
+        #     goal_present_pos = {key: (g_pos, present_pos[key]) for key, g_pos in goal_pos.items()}
+        #     goal_pos = ensure_safe_goal_position(goal_present_pos, self.config.max_relative_target)
+
+        # Send goal position to the arm
+        self.bus.sync_write("Goal_Position", goal_pos)
+        return {f"{motor}.pos": val for motor, val in goal_pos.items()}
     @check_if_not_connected
     def disconnect(self) -> None:
         self.bus.disconnect()
         logger.info(f"{self} disconnected.")
 
 
-SO100Leader = SOLeader
-SO101Leader = SOLeader
+SO100Leader: TypeAlias = SOLeader
+SO101Leader: TypeAlias = SOLeader

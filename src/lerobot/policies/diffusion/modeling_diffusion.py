@@ -142,9 +142,6 @@ class DiffusionPolicy(PreTrainedPolicy):
         """Run the batch through the model and compute the loss for training or validation."""
         if self.config.image_features:
             batch = dict(batch)  # shallow copy so that adding a key doesn't modify the original
-            for key in self.config.image_features:
-                if self.config.n_obs_steps == 1 and batch[key].ndim == 4:
-                    batch[key] = batch[key].unsqueeze(1)
             batch[OBS_IMAGES] = torch.stack([batch[key] for key in self.config.image_features], dim=-4)
         loss = self.diffusion.compute_loss(batch)
         # no output_dict so returning None
@@ -184,11 +181,6 @@ class DiffusionModel(nn.Module):
             global_cond_dim += self.config.env_state_feature.shape[0]
 
         self.unet = DiffusionConditionalUnet1d(config, global_cond_dim=global_cond_dim * config.n_obs_steps)
-
-        if config.compile_model:
-            # Compile the U-Net. "reduce-overhead" is preferred for the small-batch repetitive loops
-            # common in diffusion inference.
-            self.unet = torch.compile(self.unet, mode=config.compile_mode)
 
         self.noise_scheduler = _make_noise_scheduler(
             config.noise_scheduler_type,
@@ -454,18 +446,12 @@ class DiffusionRgbEncoder(nn.Module):
     def __init__(self, config: DiffusionConfig):
         super().__init__()
         # Set up optional preprocessing.
-        if config.resize_shape is not None:
-            self.resize = torchvision.transforms.Resize(config.resize_shape)
-        else:
-            self.resize = None
-
-        crop_shape = config.crop_shape
-        if crop_shape is not None:
+        if config.crop_shape is not None:
             self.do_crop = True
             # Always use center crop for eval
-            self.center_crop = torchvision.transforms.CenterCrop(crop_shape)
+            self.center_crop = torchvision.transforms.CenterCrop(config.crop_shape)
             if config.crop_is_random:
-                self.maybe_random_crop = torchvision.transforms.RandomCrop(crop_shape)
+                self.maybe_random_crop = torchvision.transforms.RandomCrop(config.crop_shape)
             else:
                 self.maybe_random_crop = self.center_crop
         else:
@@ -491,16 +477,13 @@ class DiffusionRgbEncoder(nn.Module):
 
         # Set up pooling and final layers.
         # Use a dry run to get the feature map shape.
-        # The dummy shape mirrors the runtime preprocessing order: resize -> crop.
+        # The dummy input should take the number of image channels from `config.image_features` and it should
+        # use the height and width from `config.crop_shape` if it is provided, otherwise it should use the
+        # height and width from `config.image_features`.
 
         # Note: we have a check in the config class to make sure all images have the same shape.
         images_shape = next(iter(config.image_features.values())).shape
-        if config.crop_shape is not None:
-            dummy_shape_h_w = config.crop_shape
-        elif config.resize_shape is not None:
-            dummy_shape_h_w = config.resize_shape
-        else:
-            dummy_shape_h_w = images_shape[1:]
+        dummy_shape_h_w = config.crop_shape if config.crop_shape is not None else images_shape[1:]
         dummy_shape = (1, images_shape[0], *dummy_shape_h_w)
         feature_map_shape = get_output_shape(self.backbone, dummy_shape)[1:]
 
@@ -516,10 +499,7 @@ class DiffusionRgbEncoder(nn.Module):
         Returns:
             (B, D) image feature.
         """
-        # Preprocess: resize if configured, then crop if configured.
-
-        if self.resize is not None:
-            x = self.resize(x)
+        # Preprocess: maybe crop (if it was set up in the __init__).
         if self.do_crop:
             if self.training:  # noqa: SIM108
                 x = self.maybe_random_crop(x)

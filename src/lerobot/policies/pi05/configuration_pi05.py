@@ -50,13 +50,6 @@ class PI05Config(PreTrainedConfig):
     min_period: float = 4e-3
     max_period: float = 4.0
 
-    # Relative actions: converts absolute actions to relative (relative to state).
-    use_relative_actions: bool = False
-    # Joint names to exclude from relative (kept absolute). Empty list = all dims relative.
-    relative_exclude_joints: list[str] = field(default_factory=lambda: ["gripper"])
-    # Populated at runtime from dataset metadata by make_policy.
-    action_feature_names: list[str] | None = None
-
     # Real-Time Chunking (RTC) configuration
     rtc_config: RTCConfig | None = None
 
@@ -92,7 +85,7 @@ class PI05Config(PreTrainedConfig):
     optimizer_lr: float = 2.5e-5  # see openpi `CosineDecaySchedule: peak_lr`
     optimizer_betas: tuple[float, float] = (0.9, 0.95)
     optimizer_eps: float = 1e-8
-    optimizer_weight_decay: float = 0.0000000001
+    optimizer_weight_decay: float = 0.01
     optimizer_grad_clip_norm: float = 1.0
 
     # Scheduler settings: see openpi `CosineDecaySchedule`

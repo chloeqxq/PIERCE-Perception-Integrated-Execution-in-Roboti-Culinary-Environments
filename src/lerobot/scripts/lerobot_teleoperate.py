@@ -60,7 +60,6 @@ import rerun as rr
 
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig  # noqa: F401
 from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraConfig  # noqa: F401
-from lerobot.cameras.zmq.configuration_zmq import ZMQCameraConfig  # noqa: F401
 from lerobot.configs import parser
 from lerobot.processor import (
     RobotAction,
@@ -95,7 +94,7 @@ from lerobot.teleoperators import (  # noqa: F401
     make_teleoperator_from_config,
     omx_leader,
     openarm_leader,
-    openarm_mini,
+    # openarm_mini,
     reachy2_teleoperator,
     so_leader,
     unitree_g1,
@@ -154,6 +153,7 @@ def teleop_loop(
 
     display_len = max(len(key) for key in robot.action_features)
     start = time.perf_counter()
+
     while True:
         loop_start = time.perf_counter()
 
@@ -163,15 +163,12 @@ def teleop_loop(
         # given that it is the identity processor as default
         obs = robot.get_observation()
 
-        if robot.name == "unitree_g1":
-            teleop.send_feedback(obs)
-
         # Get teleop action
         raw_action = teleop.get_action()
 
         # Process teleop action through pipeline
         teleop_action = teleop_action_processor((raw_action, obs))
-
+        print(teleop_action)
         # Process action for robot through pipeline
         robot_action_to_send = robot_action_processor((teleop_action, obs))
 
@@ -193,8 +190,14 @@ def teleop_loop(
             # Display the final robot action that was sent
             for motor, value in robot_action_to_send.items():
                 print(f"{motor:<{display_len}} | {value:>7.2f}")
+            print("OBS:")
+            for motor, value in obs.items():
+                try:
+                    print(f"{motor:<{display_len}} | {value:>7.2f}")
+                except:
+                    pass
             move_cursor_up(len(robot_action_to_send) + 3)
-
+        # _ = teleop.send_feedback(obs)
         dt_s = time.perf_counter() - loop_start
         precise_sleep(max(1 / fps - dt_s, 0.0))
         loop_s = time.perf_counter() - loop_start
@@ -207,6 +210,7 @@ def teleop_loop(
 
 @parser.wrap()
 def teleoperate(cfg: TeleoperateConfig):
+    print("done parsing")
     init_logging()
     logging.info(pformat(asdict(cfg)))
     if cfg.display_data:
@@ -246,7 +250,9 @@ def teleoperate(cfg: TeleoperateConfig):
 
 
 def main():
+    print("registering plugins...")
     register_third_party_plugins()
+    print("parsing...")
     teleoperate()
 
 

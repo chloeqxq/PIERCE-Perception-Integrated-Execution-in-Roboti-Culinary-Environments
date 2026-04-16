@@ -41,13 +41,6 @@ class PI0FastConfig(PreTrainedConfig):
     max_action_dim: int = 32
     max_action_tokens: int = 256
 
-    # Relative actions: converts absolute actions to relative (relative to state).
-    use_relative_actions: bool = False
-    # Joint names to exclude from relative (kept absolute). Empty list = all dims relative.
-    relative_exclude_joints: list[str] = field(default_factory=lambda: ["gripper"])
-    # Populated at runtime from dataset metadata by make_policy.
-    action_feature_names: list[str] | None = None
-
     # Real-Time Chunking (RTC) configuration
     rtc_config: RTCConfig | None = None
 
@@ -61,7 +54,7 @@ class PI0FastConfig(PreTrainedConfig):
 
     tokenizer_max_length: int = 200  # see openpi `__post_init__`
     text_tokenizer_name: str = "google/paligemma-3b-pt-224"
-    action_tokenizer_name: str = "lerobot/fast-action-tokenizer"
+    action_tokenizer_name: str = "physical-intelligence/fast"
     temperature: float = 0.0
     max_decoding_steps: int = 256
     fast_skip_tokens: int = 128

@@ -23,7 +23,7 @@ from typing import Any
 import torch
 
 from lerobot.configs.types import PolicyFeature
-from lerobot.datasets.feature_utils import build_dataset_frame, hw_to_dataset_features
+from lerobot.datasets.utils import build_dataset_frame, hw_to_dataset_features
 
 # NOTE: Configs need to be loaded for the client to be able to instantiate the policy config
 from lerobot.policies import (  # noqa: F401
@@ -161,13 +161,9 @@ def prepare_raw_observation(
 
     # Turns the image features to (C, H, W) with H, W matching the policy image features.
     # This reduces the resolution of the images
-    #buggy!
-    # image_dict = {
-    #     key: resize_robot_observation_image(torch.tensor(lerobot_obs[key]), policy_image_features[key].shape) #problem: policy_image_features_key where key is observation.images.left_wrist
-    #     for key in image_keys
-    # }
     image_dict = {
-        key: resize_robot_observation_image(torch.tensor(lerobot_obs[key]), (3,244,244)) for key in image_keys#hard code for pi
+        key: resize_robot_observation_image(torch.tensor(lerobot_obs[key]), policy_image_features[key].shape)
+        for key in image_keys
     }
 
     if "task" in robot_obs:

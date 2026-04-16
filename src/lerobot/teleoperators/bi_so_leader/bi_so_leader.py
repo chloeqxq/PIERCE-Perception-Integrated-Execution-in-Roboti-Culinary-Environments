@@ -43,12 +43,15 @@ class BiSOLeader(Teleoperator):
             id=f"{config.id}_left" if config.id else None,
             calibration_dir=config.calibration_dir,
             port=config.left_arm_config.port,
+            invert_shoulder=config.left_arm_config.invert_shoulder
         )
 
         right_arm_config = SOLeaderTeleopConfig(
             id=f"{config.id}_right" if config.id else None,
             calibration_dir=config.calibration_dir,
             port=config.right_arm_config.port,
+            invert_shoulder=config.right_arm_config.invert_shoulder
+
         )
 
         self.left_arm = SOLeader(left_arm_config)
@@ -106,10 +109,15 @@ class BiSOLeader(Teleoperator):
         action_dict.update({f"right_{key}": value for key, value in right_action.items()})
 
         return action_dict
-
+    def disable_torque(self):
+        self.left_arm.bus.disable_torque()
+        self.right_arm.bus.disable_torque()
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # TODO: Implement force feedback
-        raise NotImplementedError
+        self.left_arm.bus.enable_torque()
+        self.right_arm.bus.enable_torque()
+        self.left_arm.send_feedback({f"{key[5:]}": value for key, value in feedback.items() if key[:4]=="left"})
+        self.right_arm.send_feedback({f"{key[6:]}": value for key, value in feedback.items() if key[:5]=="right"})
 
     @check_if_not_connected
     def disconnect(self) -> None:

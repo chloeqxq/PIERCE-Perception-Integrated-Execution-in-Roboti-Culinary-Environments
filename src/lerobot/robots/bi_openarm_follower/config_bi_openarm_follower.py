@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from lerobot.cameras import CameraConfig
 from lerobot.robots.openarm_follower import OpenArmFollowerConfigBase
 
 from ..config import RobotConfig
@@ -29,6 +28,3 @@ class BiOpenArmFollowerConfig(RobotConfig):
 
     left_arm_config: OpenArmFollowerConfigBase
     right_arm_config: OpenArmFollowerConfigBase
-
-    # Top-level cameras shared across both arms.
-    cameras: dict[str, CameraConfig] = field(default_factory=dict)

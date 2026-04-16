@@ -98,15 +98,21 @@ class EEReferenceAndDelta(RobotActionProcessorStep):
 
         # Current pose from FK on measured joints
         t_curr = self.kinematics.forward_kinematics(q_raw)
-
-        enabled = bool(action.pop("enabled"))
-        tx = float(action.pop("target_x"))
-        ty = float(action.pop("target_y"))
-        tz = float(action.pop("target_z"))
-        wx = float(action.pop("target_wx"))
-        wy = float(action.pop("target_wy"))
-        wz = float(action.pop("target_wz"))
-        gripper_vel = float(action.pop("gripper_vel"))
+        # enabled = bool(action.pop("enabled"))
+        # tx = float(action.pop("target_x"))
+        # ty = float(action.pop("target_y"))
+        # tz = float(action.pop("target_z"))
+        # wx = float(action.pop("target_wx"))
+        # wy = float(action.pop("target_wy"))
+        # wz = float(action.pop("target_wz"))
+        enabled = True#bool(action.pop("enabled"))
+        tx = float(action.pop("delta_x"))
+        ty = float(action.pop("delta_y"))
+        tz = float(action.pop("delta_z"))
+        wx = 0#float(action.pop("target_wx"))
+        wy = 0#float(action.pop("target_wy"))
+        wz = 0#float(action.pop("target_wz"))
+        gripper_pos = float(action.pop("gripper")-1)*95
 
         desired = None
 
@@ -117,7 +123,10 @@ class EEReferenceAndDelta(RobotActionProcessorStep):
                 if not self._prev_enabled or self.reference_ee_pose is None:
                     self.reference_ee_pose = t_curr.copy()
                 ref = self.reference_ee_pose if self.reference_ee_pose is not None else t_curr
-
+            if self.reference_ee_pose is None:
+                self.reference_ee_pose = t_curr.copy()
+            else:
+                ref = self.reference_ee_pose
             delta_p = np.array(
                 [
                     tx * self.end_effector_step_sizes["x"],
@@ -130,7 +139,7 @@ class EEReferenceAndDelta(RobotActionProcessorStep):
             desired = np.eye(4, dtype=float)
             desired[:3, :3] = ref[:3, :3] @ r_abs
             desired[:3, 3] = ref[:3, 3] + delta_p
-
+            self.reference_ee_pose = desired
             self._command_when_disabled = desired.copy()
         else:
             # While disabled, keep sending the same command to avoid drift.
@@ -145,10 +154,15 @@ class EEReferenceAndDelta(RobotActionProcessorStep):
         action["ee.x"] = float(pos[0])
         action["ee.y"] = float(pos[1])
         action["ee.z"] = float(pos[2])
-        action["ee.wx"] = float(tw[0])
-        action["ee.wy"] = float(tw[1])
-        action["ee.wz"] = float(tw[2])
-        action["ee.gripper_vel"] = gripper_vel
+        action["ee.wx"] = 0#float(tw[0])
+        action["ee.wy"] = np.pi/2#float(tw[1])
+        action["ee.wz"] = 0#float(tw[2])
+        # action["ee.wx"] = float(tw[0])
+        # action["ee.wy"] = float(tw[1])
+        # action["ee.wz"] = float(tw[2])
+        float(tw[2])
+        action["ee.gripper_pos"] = gripper_pos
+        # gripper_pos = action.pop("ee.gripper_pos")
 
         self._prev_enabled = enabled
         return action

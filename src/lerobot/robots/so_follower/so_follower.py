@@ -17,6 +17,7 @@
 import logging
 import time
 from functools import cached_property
+from typing import TypeAlias
 
 from lerobot.cameras.utils import make_cameras_from_configs
 from lerobot.motors import Motor, MotorCalibration, MotorNormMode
@@ -24,7 +25,7 @@ from lerobot.motors.feetech import (
     FeetechMotorsBus,
     OperatingMode,
 )
-from lerobot.types import RobotAction, RobotObservation
+from lerobot.processor import RobotAction, RobotObservation
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 
 from ..robot import Robot
@@ -164,9 +165,16 @@ class SOFollower(Robot):
                 self.bus.write("D_Coefficient", motor, 32)
 
                 if motor == "gripper":
+                    # self.bus.write("Max_Torque_Limit", motor, 100)  # 50% of max torque to avoid burnout
+                    # self.bus.write("Protection_Current", motor, 250)  # 50% of max current to avoid burnout
+                    # self.bus.write("Overload_Torque", motor, 25)  # 25% torque when overloaded
                     self.bus.write("Max_Torque_Limit", motor, 500)  # 50% of max torque to avoid burnout
                     self.bus.write("Protection_Current", motor, 250)  # 50% of max current to avoid burnout
                     self.bus.write("Overload_Torque", motor, 25)  # 25% torque when overloaded
+                # else:
+                #     self.bus.write("Max_Torque_Limit", motor, 300)  # 50% of max torque to avoid burnout
+                #     self.bus.write("Protection_Current", motor, 100)  # 50% of max current to avoid burnout
+                #     self.bus.write("Overload_Torque", motor, 25)  # 25% torque when overloaded
 
     def setup_motors(self) -> None:
         for motor in reversed(self.bus.motors):
@@ -186,7 +194,7 @@ class SOFollower(Robot):
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():
             start = time.perf_counter()
-            obs_dict[cam_key] = cam.read_latest()
+            obs_dict[cam_key] = cam.async_read()
             dt_ms = (time.perf_counter() - start) * 1e3
             logger.debug(f"{self} read {cam_key}: {dt_ms:.1f}ms")
 
@@ -229,5 +237,5 @@ class SOFollower(Robot):
         logger.info(f"{self} disconnected.")
 
 
-SO100Follower = SOFollower
-SO101Follower = SOFollower
+SO100Follower: TypeAlias = SOFollower
+SO101Follower: TypeAlias = SOFollower

@@ -98,7 +98,7 @@ class WandBLogger:
             entity=self.cfg.entity,
             name=self.job_name,
             notes=self.cfg.notes,
-            tags=cfg_to_group(cfg, return_list=True, truncate_tags=True) if self.cfg.add_tags else None,
+            tags=cfg_to_group(cfg, return_list=True, truncate_tags=True),
             dir=self.log_dir,
             config=cfg.to_dict(),
             # TODO(rcadene): try set to True
@@ -178,9 +178,9 @@ class WandBLogger:
 
         for k, v in d.items():
             if not isinstance(v, (int | float | str)):
-                # logging.warning(
-                #     f'WandB logging of key "{k}" was ignored as its type "{type(v)}" is not handled by this wrapper.'
-                # )
+                logging.warning(
+                    f'WandB logging of key "{k}" was ignored as its type "{type(v)}" is not handled by this wrapper.'
+                )
                 continue
 
             # Do not log the custom step key itself.
