@@ -614,67 +614,29 @@ def get_platform_ports():
             "leader_right": "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AE6084492-if00",
         }
 
-
-def get_platform_cameras():
-    """Returns camera configuration depending on the current OS."""
-    is_wsl = 'linux' in sys.platform and 'microsoft' in os.uname().release.lower()
-    
-    if is_wsl:
-        return {
-            "left_camera": 0,
-            "right_camera": 2,
-            "top_camera": 4,
-        }
-    else:
-        # Default Linux /by-path/ and /by-id/ mappings
-        host_port = 4
-        return {
-            # "left_camera": f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.1:1.0-video-index0",
-            # "right_camera": f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.3:1.0-video-index0",
-            "left_camera": f"/dev/v4l/by-path/pci-0000:0d:00.0-usb-0:3.1:1.0-video-index0",
-            "right_camera": f"/dev/v4l/by-path/pci-0000:0d:00.0-usb-0:3.3:1.0-video-index0",
-            "top_camera": "/dev/v4l/by-id/usb-Innomaker_Innomaker-U20CAM-1080p-S1_SN0001-video-index0",
-        }
-
-
+from hardware import get_robot
 
 def main():
     register_third_party_plugins()
-    cameras = get_platform_cameras()
-
-    left_camera = OpenCVCameraConfig(
-        index_or_path=cameras["left_camera"],
-        width=640, height=480, fps=30, rotation=Cv2Rotation.ROTATE_180,backend=Cv2Backends.V4L2,fourcc="MJPG"
-    )
-
-    right_camera = OpenCVCameraConfig(
-        index_or_path=cameras["right_camera"],
-        width=640, height=480, fps=30, backend=Cv2Backends.V4L2,fourcc="MJPG"
-    )
-
-    top_camera = OpenCVCameraConfig(
-        index_or_path=cameras["top_camera"],
-        width=640, height=480, fps=30, backend=Cv2Backends.V4L2,fourcc="MJPG"
-    )
 
     ports = get_platform_ports()
 
-    robot = bi_so_follower.BiSOFollowerConfig(
-            left_arm_config= so_follower.SO101FollowerConfig(
-                port = ports["follower_left"],
-                cameras= {"wrist":left_camera}
+    # robot = bi_so_follower.BiSOFollowerConfig(
+    #         left_arm_config= so_follower.SO101FollowerConfig(
+    #             port = ports["follower_left"],
+    #             cameras= {"wrist":left_camera}
 
-            ),
-            right_arm_config= so_follower.SO101FollowerConfig(
-                port = ports["follower_right"],
-                cameras= {"wrist":right_camera,"top":top_camera}
-            ),
-            id = "bot",
-            calibration_dir=Path('calibration/robots/so_follower')
-        )
+    #         ),
+    #         right_arm_config= so_follower.SO101FollowerConfig(
+    #             port = ports["follower_right"],
+    #             cameras= {"wrist":right_camera,"top":top_camera}
+    #         ),
+    #         id = "bot",
+    #         calibration_dir=Path('calibration/robots/so_follower')
+    #     )
 
     cfg= RecordConfig(
-        robot = robot,
+        robot = get_robot(),
         teleop = bi_so_leader.BiSOLeaderConfig(
             left_arm_config=so_leader.SO101LeaderConfig(
                 port = ports["leader_left"],
@@ -689,14 +651,14 @@ def main():
 
         ),
         dataset = DatasetRecordConfig(
-            repo_id = "Aasdfip/gather_green",
-            single_task = "gather the green balls in the bowl",
+            repo_id = "Aasdfip/skewer_foam_04_19_0",
+            single_task = "make a foam ball skewer",
             #"sort the foam balls by color",
-            private=True,
+            private=False,
             episode_time_s=3600,
             reset_time_s=0
-        )
-        # display_data=True
+        ),
+        display_data=True
     )
     record(cfg)
 

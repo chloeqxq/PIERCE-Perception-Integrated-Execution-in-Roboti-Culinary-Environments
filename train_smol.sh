@@ -1,0 +1,18 @@
+lerobot-train \
+--dataset.repo_id=Aasdfip/target_train \
+--dataset.video_backend=pyav \
+--policy.path=Aasdfip/smol_pretrain_50k \
+--rename_map='{"observation.images.right_top":"observation.images.camera2","observation.images.left_wrist":"observation.images.camera1","observation.images.right_wrist":"observation.images.camera3"}' \
+--policy.device=cuda \
+--policy.train_expert_only=false \
+--output_dir=outputs/train/smol_pretrain_targeted \
+--batch_size=24 \
+--steps=100000 \
+--policy.freeze_vision_encoder=true \
+--wandb.enable=true \
+--policy.repo_id="Aasdfip/smolvla_pretrain_targeted" \
+--policy.optimizer_weight_decay=0.0000000001 \
+--policy.optimizer_lr=0.0000175 \
+--log_freq=30 \
+--eval_freq=10000000 \
+--save_freq=7000

@@ -41,9 +41,10 @@ def get_platform_cameras():
         return {
             # "left_camera": f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.1:1.0-video-index0",
             # "right_camera": f"/dev/v4l/by-path/pci-0000:c3:00.{host_port}-usb-0:1.3:1.0-video-index0",
-            "left_camera": f"/dev/v4l/by-path/pci-0000:0d:00.0-usb-0:3.1:1.0-video-index0",
-            "right_camera": f"/dev/v4l/by-path/pci-0000:0d:00.0-usb-0:3.3:1.0-video-index0",
             "top_camera": "/dev/v4l/by-id/usb-Innomaker_Innomaker-U20CAM-1080p-S1_SN0001-video-index0",
+
+            "left_camera": f"/dev/v4l/by-path/pci-0000:10:00.4-usb-0:1.1:1.0-video-index0",
+            "right_camera": f"/dev/v4l/by-path/pci-0000:10:00.4-usb-0:1.3:1.0-video-index0",
         }
 from lerobot.cameras.configs import Cv2Backends, Cv2Rotation
 

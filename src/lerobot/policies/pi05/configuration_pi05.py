@@ -97,6 +97,9 @@ class PI05Config(PreTrainedConfig):
 
     tokenizer_max_length: int = 200  # see openpi `__post_init__`
 
+    relative_exclude_joints: list[str] | None = None  # List of joints to exclude from relative encoding, e.g. ["joint_1", "joint_2"]
+    action_feature_names: list[str] | None = None  # List of action feature names, used for relative encoding
+    use_relative_actions: bool = False  # Whether to use relative encoding for actions
     def __post_init__(self):
         super().__post_init__()
 

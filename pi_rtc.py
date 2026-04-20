@@ -556,9 +556,9 @@ from lerobot.policies import SmolVLAConfig,PI05Config
 if __name__ == "__main__":
     demo_cli(RTCDemoConfig(
         # policy = SmolVLAConfig(pretrained_path="/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/outputs/train/smol_pretrain_targeted/checkpoints/100000/pretrained_model"),
-        policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_pretrain_curated"),
+        # policy = SmolVLAConfig(pretrained_path="Aasdfip/smol_pretrain_50k"),
 
-        # policy = PI05Config(pretrained_path="Aasdfip/pi05_pretrain_14k"),
+        policy = PI05Config(pretrained_path="Aasdfip/pi05_pretrain_14k"),
     
         rtc = RTCConfig(
             enabled=True,execution_horizon=10, max_guidance_weight=2.0,
