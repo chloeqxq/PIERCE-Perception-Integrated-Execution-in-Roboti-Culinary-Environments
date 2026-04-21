@@ -7,6 +7,8 @@ from langgraph.graph import StateGraph, START, END
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.messages.content import create_image_block, create_plaintext_block
+from langchain_openai import ChatOpenAI
+
 
 # Import the data fetcher from the client interface we built
 from client_interface import client_get_vision_context
@@ -26,7 +28,7 @@ class VerificationState(TypedDict, total=False):
 
 class VerificationOutput(BaseModel):
     """The strict JSON schema we force the VLM to return."""
-    # reasoning: str = Field(description="A single sentence explaining what is visible in the cameras justifying the success or failure.")
+    reasoning: str = Field(description="Brief explanation of what is visible in the cameras justifying the success or failure.")
     success: bool = Field(description="True if the robot successfully completed the task, False if it failed, missed, or dropped the item.")
 
 # ==========================================
@@ -34,10 +36,37 @@ class VerificationOutput(BaseModel):
 # ==========================================
 
 # Note: Ensure you are using a vision-capable model in Ollama (e.g., llava, llama3.2-vision, or qwen-vl).
-vlm = ChatOllama(
-    model="qwen3.5:4b", # Kept from your example, though you may need a vision variant
+# vlm = ChatOllama(
+#     model="qwen3.5:4b", # Kept from your example, though you may need a vision variant
+#     temperature=0.0
+# )
+vlm = ChatOpenAI(
+    model="Qwen/Qwen3.5-4B",
+    # stream_usage=True,
+    # temperature=None,
+    max_tokens=8172,
+    # timeout=None,
+    reasoning_effort="high",
+    # reasoning_effort=None,
+    # max_retries=2,
+    # api_key="...",  # If you prefer to pass api key in directly
+    base_url="http://localhost:5000/v1",
+    api_key="",
     temperature=0.0
+    # organization="...",
+    # other params...
 )
+
+# from langchain_community.llms import VLLM
+
+# llm = VLLM(model="Qwen/Qwen3.5-2B",
+#            trust_remote_code=True,  # mandatory for hf models
+#            max_new_tokens=128,
+#            top_k=10,
+#            top_p=0.95,
+#            temperature=0.8,
+#            # tensor_parallel_size=... # for distributed inference
+# )
 
 # Bind the Pydantic schema to force structured output
 structured_vlm = vlm.with_structured_output(VerificationOutput)
@@ -83,7 +112,7 @@ def perform_verification(state: VerificationState) -> VerificationState:
         content_blocks.append(create_image_block(base64=b64_str, mime_type="jpeg"))
 
     messages = [
-        SystemMessage(content="You are a robotic QA inspector. Your job is to look at the provided camera feeds and determine if the physical task was successfully executed by the robot. Be strict but fair. Focus on the end-effector (gripper) and the target object."),
+        SystemMessage(content="You are a robotic QA inspector. Your job is to look at the provided camera feeds and determine if the physical task was successfully executed by the robot. Be strict but fair. Keep reasoning brief but relevant."),
         HumanMessage(content_blocks=content_blocks)
     ]
 
@@ -93,7 +122,7 @@ def perform_verification(state: VerificationState) -> VerificationState:
         
         return {
             "is_success": result.success,
-            # "reasoning": result.reasoning
+            "reasoning": result.reasoning
         }
     except Exception as e:
         return {"error": f"VLM verification failed to parse: {str(e)}"}
@@ -130,22 +159,23 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, help="Specific task to verify. If omitted, pulls current_task from API.", default="")
     args = parser.parse_args()
 
-    print("--- Starting Visual Verification Agent ---")
-    
-    # Initialize state
-    initial_state = VerificationState()
-    if args.task:
-        initial_state["task_to_verify"] = args.task
-        print(f"Target Task Override: '{args.task}'")
+    for i in range(3):
+        print("--- Starting Visual Verification Agent ---")
 
-    # Execute the LangGraph state machine
-    final_state = verification_agent.invoke(initial_state)
+        # Initialize state
+        initial_state = VerificationState()
+        if args.task:
+            initial_state["task_to_verify"] = args.task
+            print(f"Target Task Override: '{args.task}'")
+        
+        # Execute the LangGraph state machine
+        final_state = verification_agent.invoke(initial_state)
 
-    if final_state.get("error"):
-        print(f"\n[!] ERROR: {final_state['error']}")
-        sys.exit(1)
+        if final_state.get("error"):
+            print(f"\n[!] ERROR: {final_state['error']}")
+            sys.exit(1)
 
-    print("\n--- Verification Results ---")
-    print(f"Task Verified: {final_state.get('task_to_verify')}")
-    print(f"Success:       {'✅ YES' if final_state.get('is_success') else '❌ NO'}")
-    print(f"Reasoning:     {final_state.get('reasoning')}")
+        print("\n--- Verification Results ---")
+        print(f"Task Verified: {final_state.get('task_to_verify')}")
+        print(f"Success:       {'✅ YES' if final_state.get('is_success') else '❌ NO'}")
+        print(f"Reasoning:     {final_state.get('reasoning')}")

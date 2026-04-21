@@ -310,7 +310,10 @@ class FeetechMotorsBus(SerialMotorsBus):
 
     def _encode_sign(self, data_name: str, ids_values: dict[int, int]) -> dict[int, int]:
         for id_ in ids_values:
-            model = self._id_to_model(id_)
+            try:
+                model = self._id_to_model(id_)
+            except:
+                model = "sts3215"
             encoding_table = self.model_encoding_table.get(model)
             if encoding_table and data_name in encoding_table:
                 sign_bit = encoding_table[data_name]

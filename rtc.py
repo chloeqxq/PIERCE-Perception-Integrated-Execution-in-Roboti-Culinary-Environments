@@ -569,5 +569,7 @@ if __name__ == "__main__":
         action_queue_size_to_get_new_actions=15,
         duration=3600,
         task="make a foam ball skewer",
+        # task="stay still and do nothing",
+
     ))
     logging.info("RTC demo finished")

@@ -1049,7 +1049,7 @@ class SerialMotorsBus(MotorsBusBase):
 
     @check_if_not_connected
     def write(
-        self, data_name: str, motor: str, value: Value, *, normalize: bool = True, num_retry: int = 0
+        self, data_name: str, motor: str, value: Value, *, normalize: bool = True, num_retry: int = 0, motor_id = None
     ) -> None:
         """Write a value to a single motor's register.
 
@@ -1066,9 +1066,14 @@ class SerialMotorsBus(MotorsBusBase):
             normalize (bool, optional): Enable or disable normalisation. Defaults to `True`.
             num_retry (int, optional): Retry attempts.  Defaults to `0`.
         """
+        if motor_id is None:
+            id_ = self.motors[motor].id
+            model = self.motors[motor].model
 
-        id_ = self.motors[motor].id
-        model = self.motors[motor].model
+        else:
+            id_ = motor_id
+            model = "sts3215" # hack, allow "nonexistent motor"
+
         addr, length = get_address(self.model_ctrl_table, model, data_name)
 
         int_value = int(value)

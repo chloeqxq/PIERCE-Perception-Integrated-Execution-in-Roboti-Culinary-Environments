@@ -504,7 +504,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                 },
             )
 
-        robot.connect()
+        robot.connect(calibrate=False)
         if teleop is not None:
             teleop.connect()
 

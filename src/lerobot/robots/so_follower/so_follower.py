@@ -62,7 +62,7 @@ class SOFollower(Robot):
             calibration=self.calibration,
         )
         self.cameras = make_cameras_from_configs(config.cameras)
-
+        self.has_rotating_base = False
     @property
     def _motors_ft(self) -> dict[str, type]:
         return {f"{motor}.pos": float for motor in self.bus.motors}
@@ -181,6 +181,18 @@ class SOFollower(Robot):
             input(f"Connect the controller board to the '{motor}' motor only and press enter.")
             self.bus.setup_motor(motor)
             print(f"'{motor}' motor id set to {self.bus.motors[motor].id}")
+    '''
+    configures the rotating base
+    '''
+    def config_base(self):
+        self.bus.write("Operating_Mode",None,3,motor_id=7,normalize=False)
+        self.bus.write("Min_Position_Limit",None,0,motor_id=7,normalize=False)
+        self.bus.write("Max_Position_Limit",None,0,motor_id=7,normalize=False)
+        self.bus.write("Goal_Velocity",None,500,motor_id=7,normalize=False)
+        self.has_rotating_base = True
+    
+    def step_base(self,steps):
+        self.bus.write("Goal_Position",None,steps,motor_id=7,normalize=False)
 
     @check_if_not_connected
     def get_observation(self) -> RobotObservation:
@@ -229,7 +241,9 @@ class SOFollower(Robot):
         return {f"{motor}.pos": val for motor, val in goal_pos.items()}
 
     @check_if_not_connected
-    def disconnect(self):
+    def disconnect(self):    
+        if(self.has_rotating_base):
+            self.bus._disable_torque(7, "sts3215", 2)
         self.bus.disconnect(self.config.disable_torque_on_disconnect)
         for cam in self.cameras.values():
             cam.disconnect()

@@ -24,6 +24,38 @@ def pil_to_base64(image, format="PNG"):
     
     return base64_string
 
+def get_camera_frame(path="/dev/video0"):
+    path = "/dev/video0"
+    print(f"trying to read from {path}")
+    cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    print("starting stream capture")
+
+    #buffer
+    for _ in range (5):
+        cap.read()
+
+    ret, frame = cap.read()
+
+    if not ret:
+        print("Can't receive frame (stream end?). Exiting...")
+    else:
+        print("Frame recieved")
+        
+    # Display the resulting frame
+    # cv2.imshow('Webcam Feed', frame)
+
+    cap.release()
+
+    #convert cv2 image to PIL
+    color_coverted = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    pil_frame = Image.fromarray(color_coverted)
+
+    return pil_frame
+
+
 # model = init_chat_model(
 #     model="qwen3.5:4b",
 #     model_provider="ollama",
@@ -33,24 +65,14 @@ def pil_to_base64(image, format="PNG"):
 model = ChatOllama(
     model="qwen3.5:4b",
     # temperature=0
-    reasoning=True
+    reasoning=False
 )
-
-# Get video
-path = "/dev/video0"
-print(f"trying to read from {path}")
-cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
-fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-cap.set(cv2.CAP_PROP_FOURCC, fourcc)
-cap.set(cv2.CAP_PROP_FPS, 30)
-print("starting stream capture")
-
 
 
 # List of standard content blocks
-cat_image = Image.open("/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/image.png")
+# cat_image = Image.open("/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/image.png")
 human_message = HumanMessage(content_blocks=[
-    create_image_block(base64=pil_to_base64(cat_image),mime_type="PNG"),])
+    create_image_block(base64=pil_to_base64(get_camera_frame()),mime_type="PNG"),])
 
 conversation = [
     SystemMessage("you are an image captioning agent. You are concise and minimize unnecessary yapping."),
