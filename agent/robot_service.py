@@ -75,6 +75,7 @@ class RobotWrapper:
         self.take_action = False
         self.base_goal = 0
         self.max_base_angle = 2000
+        self.teleop = None
 
     def get_observation(self) -> dict[str, Tensor]:
         with self.lock:
@@ -593,7 +594,8 @@ def process_obs_for_agent(obs: dict) -> dict:
                 # Convert RGB to BGR for cv2 encoding
                 img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
                 _, buffer = cv2.imencode('.jpg', img_bgr)
-                
+                if key == "right_top":
+                    key = "head"
                 # Append to the nested image dictionary
                 payload["images_base64"][key] = base64.b64encode(buffer).decode('utf-8')
         else:

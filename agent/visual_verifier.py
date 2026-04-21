@@ -28,8 +28,8 @@ class VerificationState(TypedDict, total=False):
 
 class VerificationOutput(BaseModel):
     """The strict JSON schema we force the VLM to return."""
-    reasoning: str = Field(description="Brief explanation of what is visible in the cameras justifying the success or failure.")
-    success: bool = Field(description="True if the robot successfully completed the task, False if it failed, missed, or dropped the item.")
+    reasoning: str = Field(description="")
+    success: bool = Field(description="")
 
 # ==========================================
 # 2. Initialize VLM
@@ -41,18 +41,21 @@ class VerificationOutput(BaseModel):
 #     temperature=0.0
 # )
 vlm = ChatOpenAI(
-    model="Qwen/Qwen3.5-4B",
+    model="vlm", # generic model name served by vllm
     # stream_usage=True,
     # temperature=None,
     max_tokens=8172,
     # timeout=None,
-    reasoning_effort="high",
-    # reasoning_effort=None,
+    # reasoning_effort="high",
+    reasoning_effort=None,
     # max_retries=2,
     # api_key="...",  # If you prefer to pass api key in directly
     base_url="http://localhost:5000/v1",
     api_key="",
-    temperature=0.0
+    temperature=0.0, #argmax sampling
+    extra_body={
+        "top_k":1 #try to force determinism
+    },
     # organization="...",
     # other params...
 )
@@ -103,7 +106,7 @@ def perform_verification(state: VerificationState) -> VerificationState:
 
     # Build multimodal content blocks
     content_blocks = [
-        {"type":"text","text":f"Please verify if the following physical task was successfully completed: '{task}'\nHere are the current camera views:"}
+        {"type":"text","text":f"Please verify if the following physical task was successfully completed: '{task}'\nSuccess Condition: foam balls are threaded on the metal skewer and not held by gripper.\nCurrent Camera Views:"}
     ]
     
     # Dynamically append all available camera feeds
@@ -112,7 +115,7 @@ def perform_verification(state: VerificationState) -> VerificationState:
         content_blocks.append(create_image_block(base64=b64_str, mime_type="jpeg"))
 
     messages = [
-        SystemMessage(content="You are a robotic QA inspector. Your job is to look at the provided camera feeds and determine if the physical task was successfully executed by the robot. Be strict but fair. Keep reasoning brief but relevant."),
+        SystemMessage(content="You are a robotic QA inspector in charge of a bimanual manipulator equipped with a head camera and gripper cameras. Your job is to cross reference the current multi-view camera observations and determine if the physical task was successfully executed by the robot. Be strict but fair. Keep reasoning brief but relevant."),
         HumanMessage(content_blocks=content_blocks)
     ]
 
@@ -158,8 +161,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Visual Verification Agent.")
     parser.add_argument("--task", type=str, help="Specific task to verify. If omitted, pulls current_task from API.", default="")
     args = parser.parse_args()
-
+    from time import perf_counter
     for i in range(3):
+        start_time = perf_counter()
         print("--- Starting Visual Verification Agent ---")
 
         # Initialize state
@@ -179,3 +183,4 @@ if __name__ == "__main__":
         print(f"Task Verified: {final_state.get('task_to_verify')}")
         print(f"Success:       {'✅ YES' if final_state.get('is_success') else '❌ NO'}")
         print(f"Reasoning:     {final_state.get('reasoning')}")
+        print(f"Time Elapsed: {perf_counter()-start_time}")

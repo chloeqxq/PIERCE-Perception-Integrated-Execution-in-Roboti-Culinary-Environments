@@ -2,6 +2,7 @@ import sys
 import os
 from pathlib import Path
 from lerobot.robots import bi_so_follower,so_follower
+from lerobot.teleoperators import bi_so_leader,so_leader
 def get_platform_ports():
     """Returns ports configuration depending on the current OS."""
     # Check if we are running in WSL by looking for Microsoft kernel
@@ -84,3 +85,19 @@ def get_robot():
             calibration_dir=Path('calibration/robots/so_follower')
         )
     return robot
+
+def get_teleop():
+    ports = get_platform_ports()
+    teleop = bi_so_leader.BiSOLeaderConfig(
+        left_arm_config=so_leader.SO101LeaderConfig(
+            port = ports["leader_left"],
+            invert_shoulder=False
+        ),
+        right_arm_config=so_leader.SO101LeaderConfig(
+            port = ports["leader_right"],
+            invert_shoulder=False
+        ),
+        id = "leader",
+        calibration_dir=Path('calibration/teleoperators/so_leader')
+    ),
+    return teleop
