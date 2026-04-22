@@ -19,6 +19,7 @@ import platform
 import select
 import subprocess
 import sys
+import threading
 import time
 from copy import copy, deepcopy
 from datetime import datetime
@@ -29,6 +30,135 @@ import numpy as np
 import torch
 from accelerate import Accelerator
 from datasets.utils.logging import disable_progress_bar, enable_progress_bar
+PIPER_MODEL_PATH = Path(
+    "/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/en_US-sam-medium.onnx"
+    # '/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/piper_voices/mv2.onnx'
+    # "/home/guff/.cache/huggingface/hub/models--campwill--HAL-9000-Piper-TTS"
+    # "/snapshots/5ad905a1f42cb33364df9d3856491bca8738b9fa/hal.onnx"
+)
+
+IS_PIPER_VOICE_AVAILABLE = False
+try:
+    from piper import PiperVoice
+    from piper.audio_playback import AudioPlayer
+    IS_PIPER_VOICE_AVAILABLE = PIPER_MODEL_PATH.exists() and AudioPlayer.is_available()
+except Exception:
+    pass
+
+
+class PiperTTSEngine:
+    """Singleton TTS engine that loads the Piper model once and plays audio
+    through ffplay, supporting interrupt-on-new-utterance and non-blocking use.
+
+    Architecture
+    ------------
+    - A single daemon worker thread blocks on ``_wakeup`` (a threading.Event).
+    - Calling ``say()`` kills any in-progress ffplay subprocess, stores the new
+      text in ``_pending``, and signals ``_wakeup`` to wake the worker.
+    - The worker synthesises raw s16le PCM via Piper and streams it chunk-by-chunk
+      into an ffplay subprocess.  It checks ``_wakeup`` before each write so that
+      a new ``say()`` call can interrupt synthesis mid-stream without delay.
+    - Blocking callers pass a ``threading.Event`` in ``_pending``; the worker sets
+      it after ffplay exits, letting the caller's ``event.wait()`` return.
+    """
+
+    _instance: "PiperTTSEngine | None" = None
+
+    def __init__(self, model_path: Path) -> None:
+        self._voice = PiperVoice.load(str(model_path))
+        self._sample_rate: int = self._voice.config.sample_rate
+
+        self._lock = threading.Lock()
+        self._current_proc: subprocess.Popen | None = None
+        # (text, done_event_or_None)
+        self._pending: tuple[str, threading.Event | None] | None = None
+        self._wakeup = threading.Event()
+
+        self._thread = threading.Thread(target=self._worker, daemon=True)
+        self._thread.start()
+
+    @classmethod
+    def get_instance(cls) -> "PiperTTSEngine":
+        if cls._instance is None:
+            cls._instance = cls(PIPER_MODEL_PATH)
+        return cls._instance
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def say(self, text: str, blocking: bool = False) -> None:
+        done_event: threading.Event | None = None
+        if blocking:
+            done_event = threading.Event()
+
+        with self._lock:
+            self._kill_current()
+            self._pending = (text, done_event)
+
+        self._wakeup.set()
+
+        if blocking:
+            done_event.wait()  # type: ignore[union-attr]
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _kill_current(self) -> None:
+        """Terminate the running ffplay process (must be called with _lock held)."""
+        proc = self._current_proc
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
+            proc.terminate()
+            self._current_proc = None
+
+    def _play(self, text: str) -> None:
+        """Synthesise *text* with Piper and stream PCM into ffplay via AudioPlayer."""
+        interrupted = False
+        with AudioPlayer(self._sample_rate) as player:
+            with self._lock:
+                self._current_proc = player._proc
+
+            try:
+                for audio_chunk in self._voice.synthesize(text):
+                    if self._wakeup.is_set():
+                        # A new utterance has arrived — stop synthesis early.
+                        interrupted = True
+                        break
+                    try:
+                        player.play(audio_chunk.audio_int16_bytes)
+                    except BrokenPipeError:
+                        interrupted = True
+                        break
+            finally:
+                if interrupted:
+                    player._proc.terminate()
+
+        with self._lock:
+            if self._current_proc is player._proc:
+                self._current_proc = None
+
+    def _worker(self) -> None:
+        while True:
+            self._wakeup.wait()
+            self._wakeup.clear()
+
+            with self._lock:
+                item = self._pending
+                self._pending = None
+
+            if item is None:
+                continue
+
+            text, done_event = item
+            self._play(text)
+
+            if done_event is not None:
+                done_event.set()
 
 
 def inside_slurm():
@@ -196,6 +326,10 @@ def format_big_number(num, precision=0):
 
 
 def say(text: str, blocking: bool = False):
+    if IS_PIPER_VOICE_AVAILABLE:
+        PiperTTSEngine.get_instance().say(text, blocking=blocking)
+        return
+
     system = platform.system()
 
     if system == "Darwin":
