@@ -35,6 +35,7 @@ PIPER_MODEL_PATH = Path(
     # '/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/piper_voices/mv2.onnx'
     # "/home/guff/.cache/huggingface/hub/models--campwill--HAL-9000-Piper-TTS"
     # "/snapshots/5ad905a1f42cb33364df9d3856491bca8738b9fa/hal.onnx"
+    # "/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/piper_voices/zh_CN-xiao_ya-medium.onnx"
 )
 
 IS_PIPER_VOICE_AVAILABLE = False
