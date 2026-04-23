@@ -74,7 +74,7 @@ class RobotWrapper:
         self.task = ""
         self.take_action = False
         self.base_goal = 0
-        self.max_base_angle = 2000
+        self.max_base_angle = 5000
         self.teleop = None
 
     def get_observation(self) -> dict[str, Tensor]:
@@ -113,7 +113,10 @@ class RobotWrapper:
     def rotate_base(self,steps):
         with self.lock:
             if(abs(self.base_goal+steps)<self.max_base_angle):
-                self.robot.right_arm.step_base(steps)
+                try:
+                    self.robot.right_arm.step_base(steps)
+                except:
+                    return False,self.base_goal
                 self.base_goal+=steps
                 return True,self.base_goal
                 # log_say(f"rotating base by {steps} steps")
@@ -218,7 +221,8 @@ def policy_infer(
     """
     try:
         logger.info("[GET_ACTIONS] Starting get actions thread")
-
+        last_inference_timestamp = None
+        robot.inference_dt = 1
         latency_tracker = LatencyTracker()  # Track latency of action chunks
         fps = cfg.fps
         time_per_chunk = 1.0 / fps
@@ -283,11 +287,16 @@ def policy_infer(
                 preproceseded_obs = preprocessor(obs_with_policy_features)
                 # Generate actions WITH RTC
                 if robot.take_action:
+                    if last_inference_timestamp is not None:
+                        robot.inference_dt = time.perf_counter()-last_inference_timestamp
+                        logger.info(f"inference freq: {1/robot.inference_dt}")
+                    last_inference_timestamp = time.perf_counter()
                     actions = policy.predict_action_chunk(
                         preproceseded_obs,
                         inference_delay=inference_delay,
                         prev_chunk_left_over=prev_actions,
                     )
+                    # logger.info(f"inference time: {time.perf_counter()-last_inference_timestamp}")
 
                     # Store original actions (before postprocessing) for RTC
                     original_actions = actions.squeeze(0).clone()
@@ -309,8 +318,9 @@ def policy_infer(
                         original_actions, postprocessed_actions, new_delay, action_index_before_inference
                     )
             else:
+                # logger.info(f"action queue size: {action_queue.qsize()}")
                 # Small sleep to prevent busy waiting
-                time.sleep(0.1)
+                time.sleep(0.02)
 
         logger.info("[GET_ACTIONS] get actions thread shutting down")
     except Exception as e:
@@ -481,13 +491,14 @@ def rtc_main(cfg: RTCConfig):
     robot.right_arm.config_base() # hack: setup rotating base motor connected to bus of right arm
     robot_wrapper = RobotWrapper(robot)
     robot_wrapper.set_task(cfg.task)
-
+    log_say("robot connected")
     # Create robot observation processor
     robot_observation_processor = make_default_robot_observation_processor()
     robot_action_processor = make_default_robot_action_processor()
 
     # Create action queue for communication between threads
     action_queue = ActionQueue(cfg.rtc)
+    log_say("starting policy thread")
 
     # Start chunk requester thread
     get_actions_thread = Thread(
@@ -506,6 +517,7 @@ def rtc_main(cfg: RTCConfig):
         daemon=True,
         name="Actor",
     )
+    log_say("starting actor thread")
     actor_thread.start()
     logger.info("Started actor thread")
 
@@ -519,6 +531,7 @@ def rtc_main(cfg: RTCConfig):
 
     logger.info("Starting VLA Control Server on port 8000...")
     try:
+        log_say("robot server initialization complete")
         # Blocks the main thread and serves requests
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="error")
     except KeyboardInterrupt:
@@ -633,6 +646,7 @@ def api_set_task(cmd: TaskCommand):
     if not robot:
          raise HTTPException(status_code=500)
     robot.set_task(cmd.task)
+    log_say(f"updating task to: {cmd.task}")
     return {"status": "success", "task": cmd.task}
 
 @app.post("/allow_act")
@@ -641,6 +655,11 @@ def api_allow_act(cmd: ActionAllowCommand):
     if not robot:
         raise HTTPException(status_code=500)
     robot.allow_action(cmd.allow_act)
+    # if(cmd.allow_act):
+    #     log_say(f"enabling policy control")
+    # else:
+    #     log_say(f"disabling policy control")
+
     return {"status": "success", "motors_active": cmd.allow_act}
 
 @app.post("/base")
@@ -654,18 +673,23 @@ def api_base_rotate(cmd: BaseRotateCommand):
 from lerobot.policies import SmolVLAConfig,PI05Config
 
 if __name__ == "__main__":
+    log_say("initializing robot microservice")
     rtc_main(RobotConfig(
         # policy = SmolVLAConfig(pretrained_path="/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/outputs/train/smol_pretrain_targeted/checkpoints/100000/pretrained_model"),
-        policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_pretrain_curated"),
+        # policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_pretrain_subtask"),
+        policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_subtask_1"),
 
+        # policy = SmolVLAConfig(pretrained_path="Aasdfip/smol_ca_10k"),
         # policy = PI05Config(pretrained_path="Aasdfip/pi05_pretrain_14k"),
-    
+        use_torch_compile=False,
+        # torch_compile_backend=None,
+        torch_compile_mode=None,
         rtc = RTCConfig(
-            enabled=True,execution_horizon=10, max_guidance_weight=2.0,
+            enabled=True,execution_horizon=10, max_guidance_weight=10.0,
             # prefix_attention_schedule=RTCAttentionSchedule.EXP
         ),
         fps=30,
-        action_queue_size_to_get_new_actions=15,
+        action_queue_size_to_get_new_actions=35, # 2Hz target.
         duration=3600,
         task="make a foam ball skewer",
         # task="stay still and do nothing",

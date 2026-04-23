@@ -8,8 +8,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.messages.content import create_image_block, create_plaintext_block
 from langchain_openai import ChatOpenAI
-
-
+from langchain_qwq import ChatQwQ
 # Import the data fetcher from the client interface we built
 from client_interface import client_get_vision_context
 
@@ -31,6 +30,7 @@ class VerificationOutput(BaseModel):
     reasoning: str = Field(description="")
     success: bool = Field(description="")
 
+
 # ==========================================
 # 2. Initialize VLM
 # ==========================================
@@ -40,26 +40,48 @@ class VerificationOutput(BaseModel):
 #     model="qwen3.5:4b", # Kept from your example, though you may need a vision variant
 #     temperature=0.0
 # )
+# vlm = ChatOpenAI(
+#     model="vlm", # generic model name served by vllm
+#     # stream_usage=True,
+#     # temperature=None,
+#     max_tokens=8172,
+#     # timeout=None,
+#     # reasoning_effort="high",
+#     reasoning_effort=None,
+#     # max_retries=2,
+#     # api_key="...",  # If you prefer to pass api key in directly
+#     base_url="http://localhost:5000/v1",
+#     api_key="",
+#     temperature=0.0, #argmax sampling
+#     extra_body={
+#         "top_k":1 #try to force determinism
+#     },
+#     # organization="...",
+#     # other params...
+# )
+
 vlm = ChatOpenAI(
-    model="vlm", # generic model name served by vllm
+    model="qwen3.6-35b-a3b",
     # stream_usage=True,
     # temperature=None,
-    max_tokens=8172,
+    # max_tokens=8172,
     # timeout=None,
     # reasoning_effort="high",
-    reasoning_effort=None,
+    reasoning_effort="low",
     # max_retries=2,
-    # api_key="...",  # If you prefer to pass api key in directly
-    base_url="http://localhost:5000/v1",
-    api_key="",
+    api_key="sk-fd8f15a478e144759d4c7ee8f139f14e",  # If you prefer to pass api key in directly
+    base_url="https://dashscope-us.aliyuncs.com/compatible-mode/v1",
     temperature=0.0, #argmax sampling
     extra_body={
-        "top_k":1 #try to force determinism
+        "top_k":1, #try to force determinism,
+        "extra_body":{"enable_thinking": False}
     },
     # organization="...",
     # other params...
 )
-
+# vlm = ChatQwQ(model="qwen3.6-35b-a3b",
+# base_url = "https://dashscope-us.aliyuncs.com/api/v1"
+#               )
 # from langchain_community.llms import VLLM
 
 # llm = VLLM(model="Qwen/Qwen3.5-2B",
@@ -115,7 +137,7 @@ def perform_verification(state: VerificationState) -> VerificationState:
         content_blocks.append(create_image_block(base64=b64_str, mime_type="jpeg"))
 
     messages = [
-        SystemMessage(content="You are a robotic QA inspector in charge of a bimanual manipulator equipped with a head camera and gripper cameras. Your job is to cross reference the current multi-view camera observations and determine if the physical task was successfully executed by the robot. Be strict but fair. Keep reasoning brief but relevant."),
+        HumanMessage(content="You are a robotic QA inspector in charge of a bimanual manipulator equipped with a head camera and gripper cameras. Your job is to cross reference the current multi-view camera observations and determine if the physical task was successfully executed by the robot. Be strict but fair. Keep reasoning brief but relevant."),
         HumanMessage(content_blocks=content_blocks)
     ]
 

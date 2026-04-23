@@ -13,6 +13,11 @@ from client_interface import (client_get_vision_context, client_dispatch_task,
                               client_pause_robot, client_rotate_base, decode_image, VLA_API_URL)
 import requests
 
+PRESET_TASKS = {
+    Qt.Key_1: "pick up foam ball",
+    Qt.Key_2: "add held object to skewer",
+}
+
 class NetworkWorker(QThread):
     """Background thread to poll the VLA without freezing the GUI."""
     data_ready = pyqtSignal(dict, dict, str)
@@ -65,6 +70,14 @@ class VLADashboard(QMainWindow):
         self.prompt_input.setPlaceholderText("Enter new VLA task...")
         self.btn_send = QPushButton("Dispatch Task (Enter)")
         self.btn_send.clicked.connect(self.dispatch_task)
+        self.btn_task_1 = QPushButton("Pick Foam Ball (1)")
+        self.btn_task_1.clicked.connect(
+            lambda: self.dispatch_task(PRESET_TASKS[Qt.Key_1])
+        )
+        self.btn_task_2 = QPushButton("Add Held Object To Skewer (2)")
+        self.btn_task_2.clicked.connect(
+            lambda: self.dispatch_task(PRESET_TASKS[Qt.Key_2])
+        )
         
         self.btn_toggle = QPushButton("Enable Motors (Space)")
         self.btn_toggle.clicked.connect(self.toggle_motors)
@@ -77,6 +90,8 @@ class VLADashboard(QMainWindow):
 
         control_layout.addWidget(self.prompt_input)
         control_layout.addWidget(self.btn_send)
+        control_layout.addWidget(self.btn_task_1)
+        control_layout.addWidget(self.btn_task_2)
         control_layout.addWidget(self.btn_toggle)
         control_layout.addWidget(self.btn_left)
         control_layout.addWidget(self.btn_right)
@@ -137,8 +152,8 @@ class VLADashboard(QMainWindow):
             self.curves[joint_name].setData(self.data_buffers[joint_name])
 
     # --- Controls (Fire & Forget Threads to prevent UI freeze) ---
-    def dispatch_task(self):
-        task = self.prompt_input.text()
+    def dispatch_task(self, task=None):
+        task = task if task is not None else self.prompt_input.text()
         if task:
             threading.Thread(target=client_dispatch_task, args=(task,), daemon=True).start()
             self.prompt_input.clear()
@@ -175,6 +190,8 @@ class VLADashboard(QMainWindow):
             self.step_base(500)
         elif event.key() == Qt.Key_Right:
             self.step_base(-500)
+        elif event.key() in PRESET_TASKS:
+            self.dispatch_task(PRESET_TASKS[event.key()])
 
     def closeEvent(self, event):
         self.worker.stop()
