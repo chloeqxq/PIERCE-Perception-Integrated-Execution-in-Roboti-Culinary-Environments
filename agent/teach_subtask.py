@@ -610,7 +610,6 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
                 ):
                     log_say("Reset the environment", cfg.play_sounds)
-
                     # reset g1 robot
                     if robot.name == "unitree_g1":
                         robot.reset()
@@ -719,14 +718,16 @@ def main():
             calibration_dir=Path('calibration/teleoperators/so_leader')
         ),
         dataset = DatasetRecordConfig(
-            repo_id = "Aasdfip/subtask_pick_skew",
+            repo_id = "Aasdfip/subtask_pick_skew_recalibrate_fist_bump_mirror",
             initial_task = "stay still and do nothing",
             subtask_dict= {
                 # 's':"pick up skewer",
                 'w':"pick up foam ball",
                 'a':"add held object to skewer",
-                # 'd':"drop held object in cup",
-                'p': "stay still and do nothing"
+                'd':"drop held object in cup",
+                'p': "stay still and do nothing",
+                'b': "fist bump",
+                'm': "mirror human with right arm"
                 # 'f':"retract arms"
             },
             #"sort the foam balls by color",

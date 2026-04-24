@@ -659,7 +659,6 @@ def api_allow_act(cmd: ActionAllowCommand):
     #     log_say(f"enabling policy control")
     # else:
     #     log_say(f"disabling policy control")
-
     return {"status": "success", "motors_active": cmd.allow_act}
 
 @app.post("/base")
@@ -677,7 +676,8 @@ if __name__ == "__main__":
     rtc_main(RobotConfig(
         # policy = SmolVLAConfig(pretrained_path="/home/guff/PIERCE-Perception-Integrated-Execution-in-Roboti-Culinary-Environments/outputs/train/smol_pretrain_targeted/checkpoints/100000/pretrained_model"),
         # policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_pretrain_subtask"),
-        policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_subtask_1"),
+        # policy = SmolVLAConfig(pretrained_path="Aasdfip/smolvla_subtask_1"),
+        policy = SmolVLAConfig(pretrained_path="Aasdfip/smol_adapt_50k"),
 
         # policy = SmolVLAConfig(pretrained_path="Aasdfip/smol_ca_10k"),
         # policy = PI05Config(pretrained_path="Aasdfip/pi05_pretrain_14k"),

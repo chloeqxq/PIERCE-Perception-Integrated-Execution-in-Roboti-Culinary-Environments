@@ -16,6 +16,8 @@ import requests
 PRESET_TASKS = {
     Qt.Key_1: "pick up foam ball",
     Qt.Key_2: "add held object to skewer",
+    Qt.Key_3: "drop held object in cup",
+
 }
 
 class NetworkWorker(QThread):
@@ -78,6 +80,10 @@ class VLADashboard(QMainWindow):
         self.btn_task_2.clicked.connect(
             lambda: self.dispatch_task(PRESET_TASKS[Qt.Key_2])
         )
+        self.btn_task_3 = QPushButton("Drop Held Object In Cup (3)")
+        self.btn_task_3.clicked.connect(
+            lambda: self.dispatch_task(PRESET_TASKS[Qt.Key_3])
+        )
         
         self.btn_toggle = QPushButton("Enable Motors (Space)")
         self.btn_toggle.clicked.connect(self.toggle_motors)
@@ -92,6 +98,7 @@ class VLADashboard(QMainWindow):
         control_layout.addWidget(self.btn_send)
         control_layout.addWidget(self.btn_task_1)
         control_layout.addWidget(self.btn_task_2)
+        control_layout.addWidget(self.btn_task_3)
         control_layout.addWidget(self.btn_toggle)
         control_layout.addWidget(self.btn_left)
         control_layout.addWidget(self.btn_right)
