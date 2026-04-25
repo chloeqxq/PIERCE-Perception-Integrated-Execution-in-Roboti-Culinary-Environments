@@ -718,17 +718,18 @@ def main():
             calibration_dir=Path('calibration/teleoperators/so_leader')
         ),
         dataset = DatasetRecordConfig(
-            repo_id = "Aasdfip/subtask_pick_skew_recalibrate_fist_bump_mirror",
+            repo_id = "Aasdfip/subtask_grape",
             initial_task = "stay still and do nothing",
             subtask_dict= {
                 # 's':"pick up skewer",
-                'w':"pick up foam ball",
+                'w':"pick up grape",
                 'a':"add held object to skewer",
                 'd':"drop held object in cup",
                 'p': "stay still and do nothing",
                 'b': "fist bump",
-                'm': "mirror human with right arm"
+                'm': "mirror human with right arm",
                 # 'f':"retract arms"
+                'g':"pick up grwawawawawawawaape"
             },
             #"sort the foam balls by color",
             private=False,

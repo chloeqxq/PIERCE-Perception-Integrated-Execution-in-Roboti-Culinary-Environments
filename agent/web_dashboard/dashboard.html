@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Robot Control Portal</title>
+  <link rel="stylesheet" href="./dashboard.css">
+  <script src="./dashboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">PIERCE</p>
+      <h1>Robot Control Portal</h1>
+      <p class="subtitle">Live cameras, prompt dispatch, runtime status, and model operations in one page.</p>
+    </div>
+    <div class="pill-row">
+      <span id="connection-pill" class="pill pill-neutral">Connecting</span>
+      <span id="runtime-pill" class="pill pill-neutral">starting</span>
+      <span id="observation-pill" class="pill pill-neutral">frames idle</span>
+    </div>
+  </header>
+
+  <section class="api-bar">
+    <label class="field api-field">
+      <span>API Base URL (direct server endpoint)</span>
+      <input id="api-base-url" type="text" value="" placeholder="http://<server-ip>:8000">
+    </label>
+    <button id="apply-api-base" class="secondary-button" type="button">Apply API URL</button>
+  </section>
+
+  <main class="layout">
+    <section class="panel panel-wide">
+      <div class="panel-header">
+        <div>
+          <h2>Camera Feeds</h2>
+          <p class="panel-copy">All three cameras are pulled from the current observation API payload.</p>
+        </div>
+        <div class="controls-inline">
+          <label class="field compact-field">
+            <span>Refresh rate</span>
+            <select id="observation-interval">
+              <option value="250">4 fps</option>
+              <option value="500" selected>2 fps</option>
+              <option value="1000">1 fps</option>
+              <option value="2000">0.5 fps</option>
+              <option value="5000">0.2 fps</option>
+              <option value="0">Paused</option>
+            </select>
+          </label>
+          <button id="refresh-now" class="secondary-button" type="button">Refresh Now</button>
+        </div>
+      </div>
+      <div id="camera-status" class="hint">Waiting for the first observation...</div>
+      <div class="camera-grid">
+        <article class="camera-card" data-camera="head">
+          <div class="camera-card-header">
+            <h3>Head</h3>
+            <span class="camera-timestamp" data-role="timestamp">No frame yet</span>
+          </div>
+          <div class="camera-frame">
+            <img alt="Head camera feed" data-role="image">
+            <div class="camera-placeholder" data-role="placeholder">No frame</div>
+          </div>
+        </article>
+
+        <article class="camera-card" data-camera="left_wrist">
+          <div class="camera-card-header">
+            <h3>Left Wrist</h3>
+            <span class="camera-timestamp" data-role="timestamp">No frame yet</span>
+          </div>
+          <div class="camera-frame">
+            <img alt="Left wrist camera feed" data-role="image">
+            <div class="camera-placeholder" data-role="placeholder">No frame</div>
+          </div>
+        </article>
+
+        <article class="camera-card" data-camera="right_wrist">
+          <div class="camera-card-header">
+            <h3>Right Wrist</h3>
+            <span class="camera-timestamp" data-role="timestamp">No frame yet</span>
+          </div>
+          <div class="camera-frame">
+            <img alt="Right wrist camera feed" data-role="image">
+            <div class="camera-placeholder" data-role="placeholder">No frame</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Task Control</h2>
+          <p class="panel-copy">Dispatch a new prompt or reuse the most common task presets.</p>
+        </div>
+      </div>
+      <label class="field">
+        <span>Task prompt</span>
+        <textarea id="task-input" rows="4" placeholder="Describe the task you want the robot to perform..."></textarea>
+      </label>
+      <div class="button-row">
+        <button id="send-task" type="button">Send Task</button>
+        <button id="sync-current-task" class="secondary-button" type="button">Load Current Task</button>
+      </div>
+      <div id="preset-buttons" class="chip-row"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Robot Actions</h2>
+          <p class="panel-copy">Control actuation and base motion without leaving the browser.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <button id="toggle-act" type="button">Enable Actions</button>
+        <label class="field compact-field">
+          <span>Base step size</span>
+          <input id="base-step" type="number" value="500" min="-2000" max="2000" step="100">
+        </label>
+        <div class="button-row">
+          <button id="base-left" class="secondary-button" type="button">Base Left</button>
+          <button id="base-right" class="secondary-button" type="button">Base Right</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Runtime Operations</h2>
+          <p class="panel-copy">Use the new runtime endpoints for reconnect and model reload.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <button id="reconnect-runtime" class="secondary-button" type="button">Reconnect Runtime</button>
+        <label class="field">
+          <span>Checkpoint path</span>
+          <input id="checkpoint-path" type="text" placeholder="Aasdfip/smol_adapt_50k or /path/to/checkpoint">
+        </label>
+        <label class="field">
+          <span>Policy type (optional)</span>
+          <input id="policy-type" type="text" placeholder="smolvla, pi05, ...">
+        </label>
+        <button id="reload-model" type="button">Reload Model</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Runtime Status</h2>
+          <p class="panel-copy">Monitor state, current model, observation freshness, and base angle.</p>
+        </div>
+      </div>
+      <dl class="status-grid">
+        <div>
+          <dt>State</dt>
+          <dd id="status-state">-</dd>
+        </div>
+        <div>
+          <dt>Current Task</dt>
+          <dd id="status-task">-</dd>
+        </div>
+        <div>
+          <dt>Current Model</dt>
+          <dd id="status-model">-</dd>
+        </div>
+        <div>
+          <dt>Pending Model</dt>
+          <dd id="status-pending-model">-</dd>
+        </div>
+        <div>
+          <dt>Base Angle</dt>
+          <dd id="status-base-angle">-</dd>
+        </div>
+        <div>
+          <dt>Observation Age</dt>
+          <dd id="status-observation-age">-</dd>
+        </div>
+        <div>
+          <dt>Reason</dt>
+          <dd id="status-reason">-</dd>
+        </div>
+        <div>
+          <dt>Message</dt>
+          <dd id="status-message">-</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="panel panel-wide">
+      <div class="panel-header">
+        <div>
+          <h2>Motor Telemetry</h2>
+          <p class="panel-copy">Flattened values from the observation payload for quick debugging.</p>
+        </div>
+      </div>
+      <div id="motor-grid" class="metric-grid">
+        <div class="metric-card empty">No observation data yet.</div>
+      </div>
+    </section>
+
+    <section class="panel panel-wide">
+      <div class="panel-header">
+        <div>
+          <h2>Event Log</h2>
+          <p class="panel-copy">Recent API activity and errors from this browser session.</p>
+        </div>
+      </div>
+      <ul id="event-log" class="event-log"></ul>
+    </section>
+  </main>
+</body>
+</html>
