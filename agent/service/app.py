@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from agent.runtime.api import (
@@ -31,7 +31,7 @@ except ImportError:
 
 
 WEB_DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "web_dashboard"
-WEB_DASHBOARD_INDEX = WEB_DASHBOARD_DIR / "dashboard.html"
+WEB_DASHBOARD_INDEX = WEB_DASHBOARD_DIR / "index.html"
 
 
 def create_app(runtime) -> FastAPI:
@@ -72,20 +72,15 @@ def create_app(runtime) -> FastAPI:
             policy_type=cmd.policy_type,
         )
 
-    if WEB_DASHBOARD_INDEX.exists():
-        @app.get("/", include_in_schema=False)
-        def dashboard_root():
-            return FileResponse(WEB_DASHBOARD_INDEX)
-
-        @app.get("/dashboard", include_in_schema=False)
-        def dashboard_index():
-            return FileResponse(WEB_DASHBOARD_INDEX)
-
-        @app.get("/dashboard/", include_in_schema=False)
-        def dashboard_index_slash():
-            return FileResponse(WEB_DASHBOARD_INDEX)
-
     if WEB_DASHBOARD_DIR.exists():
-        app.mount("/dashboard", StaticFiles(directory=WEB_DASHBOARD_DIR), name="dashboard")
+        @app.get("/dashboard", include_in_schema=False)
+        def dashboard_root_redirect():
+            return RedirectResponse(url="/dashboard/", status_code=307)
+
+        app.mount(
+            "/dashboard",
+            StaticFiles(directory=WEB_DASHBOARD_DIR, html=WEB_DASHBOARD_INDEX.exists()),
+            name="dashboard",
+        )
 
     return app

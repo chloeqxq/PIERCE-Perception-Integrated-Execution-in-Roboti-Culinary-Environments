@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
+import sys
 
 import uvicorn
 from lerobot.configs import parser
 from lerobot.rl.process import ProcessSignalHandler
 from lerobot.utils.utils import init_logging, log_say
+
+repo_root = Path(__file__).resolve().parent.parent.parent
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 from agent.runtime import ServiceRuntime
 from agent.service.app import create_app
@@ -34,12 +40,11 @@ def run_service(cfg: RobotServiceConfig) -> None:
         logger.info("Cleanup completed")
 
 
-def main(cfg: RobotServiceConfig):
+def main():
+    cfg = RobotServiceConfig()
+
     run_service(cfg)
 
 
 if __name__ == "__main__":
-    cfg = RobotServiceConfig(
-
-    )
     main(cfg)
